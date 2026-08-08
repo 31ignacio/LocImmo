@@ -409,8 +409,9 @@
             <form action="{{ route('appartement.mailProprietaire') }}" method="POST" id="cForm">
                 @csrf
                 <input type="hidden" name="entreprise" value="{{ $appartements->entreprise?->user?->email ?? '' }}">
+                <input type="hidden" name="appartement_id" value="{{ $appartements->id }}">
                 <div class="row">
-                    <div class="col-sm-6"><div class="cf-group"><label>Nom &amp; prénom</label><input type="text" name="nom" placeholder="Jean Dupont" value="{{ old('nom') }}">@error('nom')<span class="text-danger">{{ $message }}</span>@enderror</div></div>
+                    <div class="col-sm-6"><div class="cf-group"><label>Nom &amp; prénom</label><input type="text" name="nom" placeholder="Loc Immo" value="{{ old('nom') }}">@error('nom')<span class="text-danger">{{ $message }}</span>@enderror</div></div>
                     <div class="col-sm-6"><div class="cf-group"><label>Adresse e-mail</label><input type="email" name="email" placeholder="vous@email.com" value="{{ old('email') }}">@error('email')<span class="text-danger">{{ $message }}</span>@enderror</div></div>
                 </div>
                 <div class="cf-group"><label>Téléphone</label><input type="tel" name="telephone" placeholder="+229 00 00 00 00" value="{{ old('telephone') }}">@error('telephone')<span class="text-danger">{{ $message }}</span>@enderror</div>

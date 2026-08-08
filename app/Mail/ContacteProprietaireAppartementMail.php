@@ -2,11 +2,9 @@
 
 namespace App\Mail;
 
+use App\Models\Appartement;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class ContacteProprietaireAppartementMail extends Mailable
@@ -16,21 +14,21 @@ class ContacteProprietaireAppartementMail extends Mailable
     public $nom;
     public $telephone;
     public $email;
-    public $message;
+    public $messageContent;
+    public $appartement;
 
-
-
-    public function __construct($nom, $telephone, $email, $message)
+    public function __construct($nom, $telephone, $email, $messageContent, Appartement $appartement)
     {
-        $this->nom = $nom;
-        $this->telephone = $telephone;
-        $this->email = $email;
-        $this->message = $message;
-
+        $this->nom            = $nom;
+        $this->telephone      = $telephone;
+        $this->email          = $email;
+        $this->messageContent = $messageContent;
+        $this->appartement    = $appartement;
     }
 
     public function build()
     {
-        return $this->markdown('emails.contacteProprietaireAppartement')
-                    ->subject('Vous avez reçu un nouveau message !');
-    }}
+        return $this->view('emails.contacteProprietaireAppartement')
+                    ->subject('Nouveau message pour votre annonce "' . $this->appartement->type . ' — ' . $this->appartement->quartier . '"');
+    }
+}

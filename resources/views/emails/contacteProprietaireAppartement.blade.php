@@ -50,6 +50,45 @@
                             </tr>
                         </table>
 
+                        <!-- ══ ANNONCE CONCERNÉE ══ -->
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="padding:24px 40px 0;">
+                                    <p style="margin:0 0 14px;font-size:11px;font-weight:700;color:#8a94a6;text-transform:uppercase;letter-spacing:0.6px;">
+                                        🏠 Annonce concernée
+                                    </p>
+                                    <table width="100%" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td style="background:#fdf8ef;border-radius:10px;border:1px solid #f3e6c8;border-left:4px solid #e8a838;padding:16px 18px;">
+                                                <table width="100%" cellpadding="0" cellspacing="0">
+                                                    <tr>
+                                                        <td style="font-size:15px;font-weight:700;color:#0d1f38;padding-bottom:4px;">
+                                                            {{ $appartement->type }} — {{ $appartement->quartier }}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="font-size:12.5px;color:#6b7280;padding-bottom:8px;">
+                                                            {{ $appartement->commune }}, {{ $appartement->departement }}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="font-size:16px;font-weight:800;color:#e8a838;padding-bottom:6px;">
+                                                            {{ number_format($appartement->prix ?? 0, 0, ',', ' ') }} FCFA
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="font-size:11.5px;color:#9a9488;">
+                                                            Référence : #{{ $appartement->id }}
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
                         <!-- ══ INFOS EXPÉDITEUR ══ -->
                         <table width="100%" cellpadding="0" cellspacing="0">
                             <tr>
@@ -108,7 +147,7 @@
                                     <table width="100%" cellpadding="0" cellspacing="0">
                                         <tr>
                                             <td style="background:#f7f9fc;border-radius:10px;border:1px solid #e8ecf1;border-left:4px solid #0d1f38;padding:16px 18px;">
-                                                <p style="margin:0;font-size:14px;color:#374151;line-height:1.75;white-space:pre-line;">{{ $message }}</p>
+                                               <p style="margin:0;font-size:14px;color:#374151;line-height:1.75;white-space:pre-line;">{{ $messageContent }}</p>
                                             </td>
                                         </tr>
                                     </table>
@@ -116,14 +155,26 @@
                             </tr>
                         </table>
 
-                        <!-- ══ BOUTON RÉPONDRE ══ -->
+                        <!-- ══ BOUTONS D'ACTION ══ -->
                         <table width="100%" cellpadding="0" cellspacing="0">
                             <tr>
                                 <td align="center" style="padding:28px 40px 0;">
-                                    <a href="mailto:{{ $email }}"
-                                       style="display:inline-block;background:#0d1f38;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:13px 32px;border-radius:9px;letter-spacing:0.3px;">
-                                        ↩ Répondre à {{ $nom }}
-                                    </a>
+                                    <table cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td style="padding-right:8px;">
+                                                <a href="{{ route('appartement.detail', $appartement->id) }}"
+                                                   style="display:inline-block;background:#e8a838;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:13px 26px;border-radius:9px;letter-spacing:0.3px;">
+                                                    🏠 Voir l'annonce
+                                                </a>
+                                            </td>
+                                            <td style="padding-left:8px;">
+                                                <a href="mailto:{{ $email }}"
+                                                   style="display:inline-block;background:#0d1f38;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:13px 26px;border-radius:9px;letter-spacing:0.3px;">
+                                                    ↩ Répondre à {{ $nom }}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </table>
                                 </td>
                             </tr>
                         </table>

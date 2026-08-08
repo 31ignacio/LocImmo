@@ -723,835 +723,845 @@
     </main>
 </div>
 
-{{-- MODAL PAIEMENT --}}
-<div class="modal fade" id="staticBackdrop2" data-backdrop="static" data-keyboard="false" tabindex="-1">
-    <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h3>Récapitulatif de paiement</h3></div>
-        <div class="modal-body">
-            <div class="f-row"><span class="fk">Durée de publication</span><span class="fv">7 Jours</span></div>
-            <div class="f-row"><span class="fk">Frais de publication</span><span class="fv p">5 000 FCFA</span></div>
-            <div class="f-warn"><i class="fa fa-exclamation-triangle"></i> Cette somme est non remboursable.</div>
-        </div>
-        <div class="modal-footer"><button type="button" class="btn-ann" data-dismiss="modal">Annuler</button><span id="payerContainer"></span></div>
-    </div></div>
-</div>
+    {{-- MODAL PAIEMENT --}}
+    <div class="modal fade" id="staticBackdrop2" data-backdrop="static" data-keyboard="false" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h3>Récapitulatif de paiement</h3></div>
+            <div class="modal-body">
+                <div class="f-row"><span class="fk">Durée de publication</span><span class="fv">7 Jours</span></div>
+                <div class="f-row"><span class="fk">Frais de publication</span><span class="fv p">5 000 FCFA</span></div>
+                <div class="f-warn"><i class="fa fa-exclamation-triangle"></i> Cette somme est non remboursable.</div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn-ann" data-dismiss="modal">Annuler</button><span id="payerContainer"></span></div>
+        </div></div>
+    </div>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-<script src="https://cdn.kkiapay.me/k.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
-<script>
-var saveRoute   = "{{ route('appartement.store') }}";
-var retourRoute = "{{ route('entreprise.espace') }}";
-var isFirstTime = @json($isFirstTime ?? false);
-</script>
-<script>
-(function () {
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://cdn.kkiapay.me/k.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
 
-/* ══════════════════════════════════════
-   CAROUSEL
-══════════════════════════════════════ */
-(function () {
-    var slides = document.querySelectorAll('.hero-slide');
-    var dots   = document.querySelectorAll('.hero-dot');
-    var cur = 0, timer = null;
-    function showSlide(n) {
-        slides.forEach(function(s){ s.classList.remove('visible'); });
-        dots.forEach(function(d){ d.classList.remove('active'); });
-        slides[n].classList.add('visible');
-        dots[n].classList.add('active');
-        cur = n;
-    }
-    dots.forEach(function(d){
-        d.addEventListener('click', function(){
-            clearInterval(timer);
-            showSlide(parseInt(d.getAttribute('data-slide')));
-            timer = setInterval(function(){ showSlide((cur + 1) % slides.length); }, 4500);
-        });
-    });
-    showSlide(0);
-    timer = setInterval(function(){ showSlide((cur + 1) % slides.length); }, 4500);
-})();
+    <script>
+        var saveRoute   = "{{ route('appartement.store') }}";
+        var retourRoute = "{{ route('entreprise.espace') }}";
+        var isFirstTime = @json($isFirstTime ?? false);
+    </script>
 
-/* ══════════════════════════════════════
-   UTILITAIRES ERREURS
-══════════════════════════════════════ */
-function setErr(el, msg) {
-    el.style.borderColor = 'var(--red)';
-    el.style.boxShadow   = '0 0 0 3px rgba(220,38,38,.07)';
-    var e = el.parentNode.querySelector('.ferr-inline');
-    if (!e) {
-        e = document.createElement('span');
-        e.className = 'ferr-inline';
-        e.style.cssText = 'display:block;font-size:11px;color:var(--red);margin-top:4px;font-weight:600;';
-        el.parentNode.appendChild(e);
-    }
-    e.textContent = msg;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-function clearErr(el) {
-    el.style.borderColor = '';
-    el.style.boxShadow   = '';
-    var e = el.parentNode.querySelector('.ferr-inline');
-    if (e) e.textContent = '';
-}
+    <script>
+        (function () {
 
-/* ══════════════════════════════════════
-   IA — ANALYSE IMAGES
-══════════════════════════════════════ */
-var mobileNetPromise = null, mobileNetLoadFailed = false, isAnalyzingImages = false;
-var REAL_ESTATE_HINTS = ['house','home','building','palace','mosque','church','monastery','library','barn','boathouse','greenhouse','patio','porch','restaurant','office','warehouse','shop','tile roof','window','window shade','sliding door','wardrobe','bookcase','studio couch','desk','dining table','table lamp','refrigerator','bathtub','shower curtain','toilet seat','stove','microwave','washer','dishwasher'];
-var NON_REAL_ESTATE_HINTS = ['person','man','woman','boy','girl','bridegroom','groom','dog','cat','bird','snake','spider','insect','fish','car','truck','bus','bicycle','motorcycle','scooter','train','airplane','boat','ship','pizza','burger','sandwich','plate','banana','orange','apple','ice cream','cake','beer','wine','coffee','cup','bottle','flower','plant','tree','forest','mountain','valley','beach','volcano','cliff','jersey','suit','shirt','dress','shoe','sneaker','handbag','backpack','laptop','phone'];
-
-function setImgErrorMessage(msg){ imgErr.textContent=msg; imgErr.style.display='block'; upz.style.borderColor='var(--red)'; }
-function clearImgErrorMessage(){ imgErr.textContent=''; imgErr.style.display='none'; upz.style.borderColor=''; }
-
-function hasHint(label, hints){
-    return hints.some(function(hint){ return label.indexOf(hint) !== -1; });
-}
-async function getMobileNetModel(){
-    if(mobileNetLoadFailed || typeof mobilenet === 'undefined' || typeof tf === 'undefined') return null;
-    if(!mobileNetPromise){ mobileNetPromise = mobilenet.load({version:2,alpha:1}); }
-    try{ return await mobileNetPromise; } catch(e){ mobileNetLoadFailed=true; return null; }
-}
-function fileToImageEl(file){
-    return new Promise(function(resolve, reject){
-        var url = URL.createObjectURL(file);
-        var img = new Image();
-        img.onload  = function(){ resolve({img:img, url:url}); };
-        img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('Image illisible')); };
-        img.src = url;
-    });
-}
-function evaluatePredictions(predictions){
-    var realEstateScore = 0, nonRealEstateScore = 0;
-    predictions.slice(0,3).forEach(function(pred){
-        var label = (pred.className || '').toLowerCase();
-        var prob  = pred.probability || 0;
-        if(hasHint(label, REAL_ESTATE_HINTS))     realEstateScore    += prob * 2;
-        if(hasHint(label, NON_REAL_ESTATE_HINTS)) nonRealEstateScore += prob * 2.5;
-    });
-    var topLabel = ((predictions[0] && predictions[0].className) || '').toLowerCase();
-    var topProb  = (predictions[0] && predictions[0].probability) || 0;
-    if(hasHint(topLabel, NON_REAL_ESTATE_HINTS) && topProb >= 0.35 && realEstateScore === 0){
-        return {accepted:false, reason:'Image refusée : photo non liée à l\'immobilier ('+topLabel+').'};
-    }
-    if(nonRealEstateScore > realEstateScore + 0.2){
-        return {accepted:false, reason:'Image refusée : contenu probablement hors immobilier.'};
-    }
-    return {accepted:true, reason:''};
-}
-async function validateImageWithMobileNet(file){
-    var model = await getMobileNetModel();
-    if(!model) return {accepted:true, reason:''};
-    try{
-        var loaded = await fileToImageEl(file);
-        var preds  = await model.classify(loaded.img);
-        URL.revokeObjectURL(loaded.url);
-        return evaluatePredictions(preds || []);
-    } catch(e){ return {accepted:true, reason:''}; }
-}
-getMobileNetModel();
-
-/* ══════════════════════════════════════
-   DATE MIN
-══════════════════════════════════════ */
-(function(){
-    var dd = document.getElementById('dispoDate');
-    if(!dd) return;
-    var t = new Date();
-    dd.min = dd.value = t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
-})();
-
-/* ══════════════════════════════════════
-   DONNÉES BÉNIN
-══════════════════════════════════════ */
-var bd = {
-    "Alibori":["Banikoara","Gogounou","Kandi","Karimama","Malanville","Ségbana"],
-    "Atacora":["Boukoumbé","Cobly","Kérou","Kouandé","Matéri","Natitingou","Péhunco","Tanguiéta","Toucountouna"],
-    "Atlantique":["Abomey-Calavi","Allada","Kpomassè","Ouidah","So-Ava","Toffo","Tori-Bossito","Zè"],
-    "Borgou":["Bembèrèkè","Kalalé","N'Dali","Nikki","Parakou","Pèrèrè","Sinendé","Tchaourou"],
-    "Collines":["Bantè","Dassa-Zoumè","Glazoué","Ouèssè","Savalou","Savè"],
-    "Couffo":["Aplahoué","Djakotomey","Dogbo","Klouékanmè","Lalo","Toviklin"],
-    "Donga":["Bassila","Copargo","Djougou","Ouaké"],
-    "Littoral":["Cotonou"],
-    "Mono":["Athiémé","Bopa","Comè","Grand-Popo","Houéyogbé","Lokossa"],
-    "Ouémé":["Adjarra","Adjohoun","Aguegues","Akpro-Missérété","Avrankou","Bonou","Dangbo","Porto-Novo","Sèmè-Podji"],
-    "Plateau":["Adja-Ouèrè","Ifangni","Kétou","Pobè","Sakété"],
-    "Zou":["Abomey","Agbangnizoun","Bohicon","Covè","Djidja","Ouinhi","Zagnanado"]
-};
-var qb = ["Akpakpa","Fidjrossè","Cadjehoun","Ganhi","Zogbo","Houéyiho","Godomey","Ste Rita","Agla","Vêdoko","Gbégamey","Wologuèdè","Jéricho","Hindé","Mènontin","Togoudo","Tankpè","Zopa","Calavi Kpota","Zogbadjè","Aitchedji","Dota","Oganla","Djassin","Kouhounou","Guéma","Kpébié","Zongo","Agongointo","Saclo","Sodohomey","Pahou","Savi","Dantokpa","Houinta","Akassato","Agori","Onigbolo"];
-
-var dSel = document.getElementById('departementSelect');
-var cSel = document.getElementById('communeSelect');
-
-Object.keys(bd).forEach(function(d){
-    var o = document.createElement('option'); o.value = d; o.textContent = d;
-    dSel.appendChild(o);
-});
-dSel.addEventListener('change', function(){
-    cSel.innerHTML = '<option value="">Sélectionner</option>';
-    cSel.disabled  = true;
-    var a = bd[this.value];
-    if(a && a.length){
-        a.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; cSel.appendChild(o); });
-        cSel.disabled = false;
-    }
-    clearErr(dSel);
-});
-cSel.addEventListener('change', function(){ if(this.value) clearErr(this); });
-
-/* ── Autocomplete quartier ── */
-var qIn = document.getElementById('quartierInput');
-var qBx = document.getElementById('quartierSuggestions');
-qIn.addEventListener('input', function(){
-    var v = this.value.toLowerCase(); qBx.innerHTML = '';
-    if(v.length < 1){ qBx.style.display='none'; return; }
-    if(this.value.trim().length >= 2) clearErr(this);
-    var r = qb.filter(function(q){ return q.toLowerCase().indexOf(v) !== -1; }).slice(0,8);
-    if(!r.length){ qBx.style.display='none'; return; }
-    r.forEach(function(q){
-        var li = document.createElement('li');
-        li.textContent = q;
-        li.addEventListener('click', function(){ qIn.value=q; qBx.style.display='none'; clearErr(qIn); });
-        qBx.appendChild(li);
-    });
-    qBx.style.display = 'block';
-});
-document.addEventListener('click', function(e){ if(!qIn.contains(e.target)) qBx.style.display='none'; });
-
-/* ══════════════════════════════════════
-   GÉOLOCALISATION
-══════════════════════════════════════ */
-var geoLat     = document.getElementById('geoLat');
-var geoLng     = document.getElementById('geoLng');
-var geoBox     = document.getElementById('geoBox');
-var geoStatus  = document.getElementById('geoStatus');
-var geoAddr    = document.getElementById('geoAddr');
-var btnGeo     = document.getElementById('btnGeo');
-var btnGeoReset= document.getElementById('btnGeoReset');
-
-function showGeoStatus(t, m){ geoStatus.className='geo-status '+t; geoStatus.innerHTML=m; geoStatus.style.display='flex'; }
-
-btnGeo.addEventListener('click', function(){
-    if(!navigator.geolocation){ showGeoStatus('err','<i class="fa fa-times-circle"></i> Non supporté.'); return; }
-    btnGeo.disabled = true;
-    showGeoStatus('loading','<i class="fa fa-spinner fa-spin"></i> Localisation en cours…');
-    navigator.geolocation.getCurrentPosition(
-        function(p){
-            var lat = p.coords.latitude.toFixed(6);
-            var lng = p.coords.longitude.toFixed(6);
-            geoLat.value = lat; geoLng.value = lng;
-            geoBox.style.display = 'block'; btnGeo.style.display = 'none';
-            showGeoStatus('ok','<i class="fa fa-check-circle"></i> Position détectée.');
-            fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json')
-                .then(function(r){ return r.json(); })
-                .then(function(d){ if(d && d.display_name) geoAddr.textContent = '📍 '+d.display_name; })
-                .catch(function(){});
-        },
-        function(err){
-            btnGeo.disabled = false;
-            showGeoStatus('err', err.code===1 ? '<i class="fa fa-ban"></i> Accès refusé.' : '<i class="fa fa-exclamation-circle"></i> Impossible de localiser.');
-        },
-        { enableHighAccuracy:true, timeout:10000 }
-    );
-});
-btnGeoReset.addEventListener('click', function(){
-    geoLat.value=''; geoLng.value=''; geoAddr.textContent='';
-    geoBox.style.display='none'; btnGeo.style.display=''; btnGeo.disabled=false; geoStatus.style.display='none';
-});
-
-/* ══════════════════════════════════════
-   TYPE DE BIEN — AFFICHAGE DYNAMIQUE
-══════════════════════════════════════ */
-var currentType = 'Maison';
-
-function applyTypeBlocks(){
-    document.querySelectorAll('.type-block').forEach(function(b){
-        var types = b.getAttribute('data-types').split(',');
-        b.classList.toggle('d-none', types.indexOf(currentType) === -1);
-    });
-    var isTerrain  = (currentType === 'Terrain');
-    var cautionBox = document.getElementById('cautionBox');
-    if(cautionBox) cautionBox.style.display = isTerrain ? 'none' : '';
-
-    /* ── Masquer / afficher l'étape 5 (description) pour Terrain ── */
-    var sideStep5 = document.getElementById('sideStep5');
-    if(sideStep5){
-        if(isTerrain){ sideStep5.classList.add('skipped'); }
-        else          { sideStep5.classList.remove('skipped'); }
-    }
-
-    updatePiecesTotal();
-    syncSurfaceTotale();
-}
-applyTypeBlocks();
-
-function initOcGrid(gridId, onChange){
-    var g = document.getElementById(gridId);
-    if(!g) return;
-    g.querySelectorAll('.oc').forEach(function(c){
-        c.addEventListener('click', function(){
-            g.querySelectorAll('.oc').forEach(function(x){ x.classList.remove('s'); });
-            c.classList.add('s');
-            if(onChange) onChange(c.getAttribute('data-v'));
-        });
-    });
-}
-initOcGrid('typeGrid', function(v){ currentType = v; applyTypeBlocks(); });
-initOcGrid('catGrid', null);
-
-/* ── Compteurs eau / élec ── */
-function initCompteurGrid(gridId, hiddenId){
-    var g = document.getElementById(gridId);
-    if(!g) return;
-    g.querySelectorAll('.compt-opt').forEach(function(opt){
-        opt.addEventListener('click', function(){
-            g.querySelectorAll('.compt-opt').forEach(function(x){ x.classList.remove('s'); });
-            opt.classList.add('s');
-            var inp = opt.querySelector('input[type="radio"]');
-            if(inp) inp.checked = true;
-            var h = document.getElementById(hiddenId);
-            if(h) h.value = opt.getAttribute('data-v');
-        });
-    });
-}
-initCompteurGrid('compteurEauGrid','compteurEauVal');
-initCompteurGrid('compteurElecGrid','compteurElecVal');
-
-/* ── Équipements (checkbox) ── */
-document.querySelectorAll('.eq').forEach(function(item){
-    item.addEventListener('click', function(){
-        item.classList.toggle('s');
-        var inp = item.querySelector('input');
-        if(inp) inp.checked = item.classList.contains('s');
-    });
-});
-
-/* ══════════════════════════════════════
-   TERRAIN — superficie auto
-══════════════════════════════════════ */
-function updateTerrainSurface(){
-    var l  = parseFloat(document.getElementById('terrainLargeur') ? document.getElementById('terrainLargeur').value : 0) || 0;
-    var lo = parseFloat(document.getElementById('terrainLongueur') ? document.getElementById('terrainLongueur').value : 0) || 0;
-    var st = document.getElementById('surfaceTerrain');
-    if(st && l > 0 && lo > 0){ st.value = Math.round(l * lo); syncSurfaceTotale(); }
-}
-var tL  = document.getElementById('terrainLargeur');
-var tLo = document.getElementById('terrainLongueur');
-if(tL)  tL.addEventListener('input', updateTerrainSurface);
-if(tLo) tLo.addEventListener('input', updateTerrainSurface);
-
-/* ══════════════════════════════════════
-   SURFACE TOTALE
-══════════════════════════════════════ */
-function syncSurfaceTotale(){
-    var h = document.getElementById('surfaceTotaleHidden');
-    if(!h) return;
-    var map = { 'Maison':'surface', 'Appartement':'surface', 'Terrain':'surfaceTerrain', 'Bureaux':'surfaceBureau', 'Boutique':'surfaceBoutique' };
-    var id  = map[currentType];
-    if(!id) return;
-    var el  = document.getElementById(id);
-    h.value = (el && el.value) ? el.value : '0';
-}
-
-function updateSurfaceTotale(){
-    var s  = parseFloat(document.getElementById('surfSalon')   ? document.getElementById('surfSalon').value   : 0) || 0;
-    var c  = parseFloat(document.getElementById('surfCuisine') ? document.getElementById('surfCuisine').value : 0) || 0;
-    var ch = parseFloat(document.getElementById('surfChambre') ? document.getElementById('surfChambre').value : 0) || 0;
-    var b  = parseFloat(document.getElementById('surfSdb')     ? document.getElementById('surfSdb').value     : 0) || 0;
-    var t  = s + c + ch + b;
-    var surfEl = document.getElementById('surface');
-    if(surfEl && t > 0) surfEl.value = t;
-    syncSurfaceTotale();
-}
-
-['surfSalon','surfCuisine','surfChambre','surfSdb'].forEach(function(id){
-    var el = document.getElementById(id);
-    if(el) el.addEventListener('input', updateSurfaceTotale);
-});
-['surface','surfaceBureau','surfaceBoutique','surfaceTerrain'].forEach(function(id){
-    var el = document.getElementById(id);
-    if(el) el.addEventListener('input', syncSurfaceTotale);
-});
-
-/* ══════════════════════════════════════
-   PIÈCES +/-
-══════════════════════════════════════ */
-function updatePiecesTotal(){
-    var salon   = parseInt(document.getElementById('nombreSalon')     ? document.getElementById('nombreSalon').value     : 0) || 0;
-    var cuisine = parseInt(document.getElementById('nombreCuisine')   ? document.getElementById('nombreCuisine').value   : 0) || 0;
-    var chambre = parseInt(document.getElementById('nombreChambre')   ? document.getElementById('nombreChambre').value   : 0) || 0;
-    var sdb     = parseInt(document.getElementById('nombreSalleBain') ? document.getElementById('nombreSalleBain').value : 0) || 0;
-    var total   = salon + cuisine + chambre + sdb;
-    var npEl    = document.getElementById('nombrePieces');   if(npEl) npEl.value  = total;
-    var pdEl    = document.getElementById('piecesTotalDisplay'); if(pdEl) pdEl.textContent = total;
-    if(document.getElementById('hSalon'))      document.getElementById('hSalon').value      = salon;
-    if(document.getElementById('hChambre'))    document.getElementById('hChambre').value    = chambre;
-    if(document.getElementById('hCuisineCount')) document.getElementById('hCuisineCount').value = cuisine;
-    var cards = { 'nombreSalon':'pcSalon', 'nombreCuisine':'pcCuisine', 'nombreChambre':'pcChambre', 'nombreSalleBain':'pcSdb' };
-    Object.keys(cards).forEach(function(fid){
-        var inp  = document.getElementById(fid);
-        var card = document.getElementById(cards[fid]);
-        if(inp && card) card.classList.toggle('has-value', parseInt(inp.value) > 0);
-    });
-}
-
-document.querySelectorAll('.cb').forEach(function(b){
-    b.addEventListener('click', function(){
-        var tid = b.getAttribute('data-t');
-        var el  = document.getElementById(tid);
-        if(!el) return;
-        var v  = parseInt(el.value) || 0;
-        var mn = parseInt(el.min) || 0;
-        if(b.getAttribute('data-a') === '+') v++;
-        else if(v > mn) v--;
-        el.value = v;
-        if(['nombreSalon','nombreCuisine','nombreChambre','nombreSalleBain'].indexOf(tid) !== -1) updatePiecesTotal();
-    });
-});
-
-/* ══════════════════════════════════════
-   OUI / NON
-══════════════════════════════════════ */
-document.querySelectorAll('.yn-b[data-t]').forEach(function(b){
-    b.addEventListener('click', function(){
-        var p = b.parentElement;
-        p.querySelectorAll('.yn-b').forEach(function(x){ x.classList.remove('s'); });
-        b.classList.add('s');
-        var el = document.getElementById(b.getAttribute('data-t'));
-        if(el) el.value = b.getAttribute('data-v');
-    });
-});
-
-/* ══════════════════════════════════════
-   PHOTOS
-══════════════════════════════════════ */
-var upz    = document.getElementById('upz');
-var fInp   = document.getElementById('images');
-var prG    = document.getElementById('prevG');
-var imgErr = document.getElementById('imgErr');
-var aFiles = [], MAX_IMG = 10 * 1024 * 1024;
-
-upz.addEventListener('click', function(){ fInp.click(); });
-upz.addEventListener('dragover', function(e){ e.preventDefault(); upz.classList.add('dz'); });
-upz.addEventListener('dragleave', function(){ upz.classList.remove('dz'); });
-upz.addEventListener('drop', function(e){ e.preventDefault(); upz.classList.remove('dz'); addF(e.dataTransfer.files); });
-fInp.addEventListener('change', function(){ addF(this.files); this.value=''; });
-
-async function addF(files){
-    var refused  = [];
-    var incoming = Array.prototype.slice.call(files || []);
-    if(!incoming.length) return;
-    imgErr.textContent = 'Analyse IA des images en cours…'; imgErr.style.display='block'; upz.style.borderColor='var(--amber)';
-    isAnalyzingImages = true;
-    for(var i=0; i<incoming.length; i++){
-        var f = incoming[i];
-        if(!f.type.startsWith('image/')){ refused.push('"'+f.name+'"'); continue; }
-        if(f.size > MAX_IMG){ refused.push('"'+f.name+'" > 10 Mo'); continue; }
-        var aiCheck = await validateImageWithMobileNet(f);
-        if(!aiCheck.accepted){ refused.push('"'+f.name+'" : hors immobilier'); continue; }
-        aFiles.push(f);
-        (function(fileRef){
-            var r = new FileReader();
-            r.onload = function(ev){
-                var d   = document.createElement('div'); d.className='pv';
-                var img = document.createElement('img'); img.src=ev.target.result;
-                var dl  = document.createElement('button'); dl.className='pv-del'; dl.type='button'; dl.innerHTML='&times;';
-                dl.addEventListener('click', function(){
-                    var idx = aFiles.indexOf(fileRef);
-                    if(idx !== -1) aFiles.splice(idx,1);
-                    d.remove(); checkImgErr();
+        /* ══════════════════════════════════════
+        CAROUSEL
+        ══════════════════════════════════════ */
+        (function () {
+            var slides = document.querySelectorAll('.hero-slide');
+            var dots   = document.querySelectorAll('.hero-dot');
+            var cur = 0, timer = null;
+            function showSlide(n) {
+                slides.forEach(function(s){ s.classList.remove('visible'); });
+                dots.forEach(function(d){ d.classList.remove('active'); });
+                slides[n].classList.add('visible');
+                dots[n].classList.add('active');
+                cur = n;
+            }
+            dots.forEach(function(d){
+                d.addEventListener('click', function(){
+                    clearInterval(timer);
+                    showSlide(parseInt(d.getAttribute('data-slide')));
+                    timer = setInterval(function(){ showSlide((cur + 1) % slides.length); }, 4500);
                 });
-                d.appendChild(img); d.appendChild(dl); prG.appendChild(d);
-            };
-            r.readAsDataURL(f);
-        })(f);
-    }
-    isAnalyzingImages = false;
-    if(refused.length) setImgErrorMessage('Refusé(s) : '+refused.join(', '));
-    else checkImgErr();
-}
+            });
+            showSlide(0);
+            timer = setInterval(function(){ showSlide((cur + 1) % slides.length); }, 4500);
+        })();
 
-function checkImgErr(){
-    if(isAnalyzingImages) return;
-    if(aFiles.length === 0) setImgErrorMessage('Au moins une photo est obligatoire.');
-    else clearImgErrorMessage();
-}
-
-/* ══════════════════════════════════════
-   VIDÉO
-══════════════════════════════════════ */
-var vidUpz     = document.getElementById('vidUpz');
-var vidInput   = document.getElementById('videoInput');
-var vidPreview = document.getElementById('vidPreview');
-var vidPlayer  = document.getElementById('vidPlayer');
-var vidName    = document.getElementById('vidName');
-var vidErr     = document.getElementById('vidErr');
-var vidDel     = document.getElementById('vidDel');
-var vidFile    = null;
-var MAX_VID    = 100 * 1024 * 1024, MAX_VID_DUR = 65;
-
-vidUpz.addEventListener('click', function(){ vidInput.click(); });
-vidUpz.addEventListener('dragover', function(e){ e.preventDefault(); vidUpz.classList.add('dz'); });
-vidUpz.addEventListener('dragleave', function(){ vidUpz.classList.remove('dz'); });
-vidUpz.addEventListener('drop', function(e){ e.preventDefault(); vidUpz.classList.remove('dz'); if(e.dataTransfer.files.length) handleVideo(e.dataTransfer.files[0]); });
-vidInput.addEventListener('change', function(){ if(this.files.length) handleVideo(this.files[0]); this.value=''; });
-
-function handleVideo(f){
-    vidErr.style.display = 'none';
-    if(!f.type.startsWith('video/')){ vidErr.textContent='Ce n\'est pas une vidéo.'; vidErr.style.display='block'; return; }
-    if(f.size > MAX_VID){ vidErr.textContent='La vidéo dépasse 100 Mo.'; vidErr.style.display='block'; return; }
-    var url = URL.createObjectURL(f);
-    var tmp = document.createElement('video'); tmp.preload='metadata'; tmp.src=url;
-    tmp.onloadedmetadata = function(){
-        URL.revokeObjectURL(url);
-        if(tmp.duration > MAX_VID_DUR){ vidErr.textContent='Durée dépassée (max 1 min 5 sec).'; vidErr.style.display='block'; vidFile=null; return; }
-        vidFile = f;
-        vidPlayer.src = URL.createObjectURL(f);
-        vidName.textContent = f.name+' ('+Math.round(f.size/1024/1024*10)/10+' Mo)';
-        vidPreview.style.display = 'block'; vidUpz.style.display = 'none';
-    };
-    tmp.onerror = function(){ vidErr.textContent='Impossible de lire ce fichier.'; vidErr.style.display='block'; };
-}
-vidDel.addEventListener('click', function(){ vidFile=null; vidPlayer.src=''; vidPreview.style.display='none'; vidUpz.style.display=''; });
-
-/* ══════════════════════════════════════
-   DESCRIPTION — compteur caractères
-══════════════════════════════════════ */
-var dTa = document.getElementById('description');
-var dCt = document.getElementById('descCt');
-dTa.addEventListener('input', function(){
-    var len = this.value.length;
-    dCt.textContent = len+' / 800';
-    dCt.style.color = len > 700 ? 'var(--red)' : 'var(--ink3)';
-});
-
-/* ── Prix ── */
-document.getElementById('prix').addEventListener('input', function(){
-    var p = this.value.replace(/\s/g,'');
-    if(p && !isNaN(parseFloat(p)) && parseFloat(p) > 0){
-        clearErr(this);
-        document.getElementById('prixErr').style.display = 'none';
-        document.getElementById('fgPrix').classList.remove('err');
-    }
-});
-
-/* ══════════════════════════════════════
-   MOBILE PROGRESS
-══════════════════════════════════════ */
-var stepLabels = ['Type de bien','Adresse','Caractéristiques','Photos & Vidéo','Description','Prix','Récapitulatif'];
-function updateMobileProgress(n){
-    var lbl  = document.getElementById('mpStepLabel');
-    var num  = document.getElementById('mpStepNum');
-    var fill = document.getElementById('mpFill');
-    if(lbl)  lbl.textContent  = 'Étape '+n+' — '+stepLabels[n-1];
-    if(num)  num.textContent  = n+' / 7';
-    if(fill) fill.style.width = ((n/7)*100).toFixed(1)+'%';
-}
-
-/* ══════════════════════════════════════
-   NAVIGATION ÉTAPES
-   — L'étape 5 est sautée si Terrain
-══════════════════════════════════════ */
-var currentStep = 1, tot = 7;
-
-/* Calcule l'étape suivante en tenant compte du saut Terrain */
-function nextStepFor(n){
-    if(n === 4 && currentType === 'Terrain') return 6;
-    return n < tot ? n + 1 : n;
-}
-/* Calcule l'étape précédente en tenant compte du saut Terrain */
-function prevStepFor(n){
-    if(n === 6 && currentType === 'Terrain') return 4;
-    return n > 1 ? n - 1 : n;
-}
-
-function goTo(n){
-    document.querySelectorAll('.sl-pane').forEach(function(p){ p.classList.remove('active'); });
-    document.getElementById('pane'+n).classList.add('active');
-    document.querySelectorAll('.sl-item').forEach(function(s){
-        var sn = parseInt(s.getAttribute('data-step'));
-        s.classList.remove('active','done');
-        /* Pour Terrain : l'étape 5 reste skipped, jamais done ni active */
-        if(currentType === 'Terrain' && sn === 5){
-            s.querySelector('.si-st').textContent = 'Non applicable';
-            return;
+        /* ══════════════════════════════════════
+        UTILITAIRES ERREURS
+        ══════════════════════════════════════ */
+        function setErr(el, msg) {
+            el.style.borderColor = 'var(--red)';
+            el.style.boxShadow   = '0 0 0 3px rgba(220,38,38,.07)';
+            var e = el.parentNode.querySelector('.ferr-inline');
+            if (!e) {
+                e = document.createElement('span');
+                e.className = 'ferr-inline';
+                e.style.cssText = 'display:block;font-size:11px;color:var(--red);margin-top:4px;font-weight:600;';
+                el.parentNode.appendChild(e);
+            }
+            e.textContent = msg;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-        if(sn === n){ s.classList.add('active'); s.querySelector('.si-st').textContent = 'En cours'; }
-        else if(sn < n){ s.classList.add('done'); s.querySelector('.si-st').textContent = 'Complété ✓'; }
-        else{ s.querySelector('.si-st').textContent = 'À compléter'; }
+        function clearErr(el) {
+            el.style.borderColor = '';
+            el.style.boxShadow   = '';
+            var e = el.parentNode.querySelector('.ferr-inline');
+            if (e) e.textContent = '';
+        }
+
+        /* ══════════════════════════════════════
+        IA — ANALYSE IMAGES
+        ══════════════════════════════════════ */
+        var mobileNetPromise = null, mobileNetLoadFailed = false, isAnalyzingImages = false;
+        var REAL_ESTATE_HINTS = ['house','home','building','palace','mosque','church','monastery','library','barn','boathouse','greenhouse','patio','porch','restaurant','office','warehouse','shop','tile roof','window','window shade','sliding door','wardrobe','bookcase','studio couch','desk','dining table','table lamp','refrigerator','bathtub','shower curtain','toilet seat','stove','microwave','washer','dishwasher'];
+        var NON_REAL_ESTATE_HINTS = ['person','man','woman','boy','girl','bridegroom','groom','dog','cat','bird','snake','spider','insect','fish','car','truck','bus','bicycle','motorcycle','scooter','train','airplane','boat','ship','pizza','burger','sandwich','plate','banana','orange','apple','ice cream','cake','beer','wine','coffee','cup','bottle','flower','plant','tree','forest','mountain','valley','beach','volcano','cliff','jersey','suit','shirt','dress','shoe','sneaker','handbag','backpack','laptop','phone'];
+
+        function setImgErrorMessage(msg){ imgErr.textContent=msg; imgErr.style.display='block'; upz.style.borderColor='var(--red)'; }
+        function clearImgErrorMessage(){ imgErr.textContent=''; imgErr.style.display='none'; upz.style.borderColor=''; }
+
+        function hasHint(label, hints){
+            return hints.some(function(hint){ return label.indexOf(hint) !== -1; });
+        }
+        async function getMobileNetModel(){
+            if(mobileNetLoadFailed || typeof mobilenet === 'undefined' || typeof tf === 'undefined') return null;
+            if(!mobileNetPromise){ mobileNetPromise = mobilenet.load({version:2,alpha:1}); }
+            try{ return await mobileNetPromise; } catch(e){ mobileNetLoadFailed=true; return null; }
+        }
+        function fileToImageEl(file){
+            return new Promise(function(resolve, reject){
+                var url = URL.createObjectURL(file);
+                var img = new Image();
+                img.onload  = function(){ resolve({img:img, url:url}); };
+                img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('Image illisible')); };
+                img.src = url;
+            });
+        }
+        function evaluatePredictions(predictions){
+            var realEstateScore = 0, nonRealEstateScore = 0;
+            predictions.slice(0,3).forEach(function(pred){
+                var label = (pred.className || '').toLowerCase();
+                var prob  = pred.probability || 0;
+                if(hasHint(label, REAL_ESTATE_HINTS))     realEstateScore    += prob * 2;
+                if(hasHint(label, NON_REAL_ESTATE_HINTS)) nonRealEstateScore += prob * 2.5;
+            });
+            var topLabel = ((predictions[0] && predictions[0].className) || '').toLowerCase();
+            var topProb  = (predictions[0] && predictions[0].probability) || 0;
+            if(hasHint(topLabel, NON_REAL_ESTATE_HINTS) && topProb >= 0.35 && realEstateScore === 0){
+                return {accepted:false, reason:'Image refusée : photo non liée à l\'immobilier ('+topLabel+').'};
+            }
+            if(nonRealEstateScore > realEstateScore + 0.2){
+                return {accepted:false, reason:'Image refusée : contenu probablement hors immobilier.'};
+            }
+            return {accepted:true, reason:''};
+        }
+        async function validateImageWithMobileNet(file){
+            var model = await getMobileNetModel();
+            if(!model) return {accepted:true, reason:''};
+            try{
+                var loaded = await fileToImageEl(file);
+                var preds  = await model.classify(loaded.img);
+                URL.revokeObjectURL(loaded.url);
+                return evaluatePredictions(preds || []);
+            } catch(e){ return {accepted:true, reason:''}; }
+        }
+        getMobileNetModel();
+
+        /* ══════════════════════════════════════
+        DATE MIN
+        ══════════════════════════════════════ */
+        (function(){
+            var dd = document.getElementById('dispoDate');
+            if(!dd) return;
+            var t = new Date();
+            dd.min = dd.value = t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+        })();
+
+        /* ══════════════════════════════════════
+        DONNÉES BÉNIN
+        ══════════════════════════════════════ */
+        var bd = {
+            "Alibori":["Banikoara","Gogounou","Kandi","Karimama","Malanville","Ségbana"],
+            "Atacora":["Boukoumbé","Cobly","Kérou","Kouandé","Matéri","Natitingou","Péhunco","Tanguiéta","Toucountouna"],
+            "Atlantique":["Abomey-Calavi","Allada","Kpomassè","Ouidah","So-Ava","Toffo","Tori-Bossito","Zè"],
+            "Borgou":["Bembèrèkè","Kalalé","N'Dali","Nikki","Parakou","Pèrèrè","Sinendé","Tchaourou"],
+            "Collines":["Bantè","Dassa-Zoumè","Glazoué","Ouèssè","Savalou","Savè"],
+            "Couffo":["Aplahoué","Djakotomey","Dogbo","Klouékanmè","Lalo","Toviklin"],
+            "Donga":["Bassila","Copargo","Djougou","Ouaké"],
+            "Littoral":["Cotonou"],
+            "Mono":["Athiémé","Bopa","Comè","Grand-Popo","Houéyogbé","Lokossa"],
+            "Ouémé":["Adjarra","Adjohoun","Aguegues","Akpro-Missérété","Avrankou","Bonou","Dangbo","Porto-Novo","Sèmè-Podji"],
+            "Plateau":["Adja-Ouèrè","Ifangni","Kétou","Pobè","Sakété"],
+            "Zou":["Abomey","Agbangnizoun","Bohicon","Covè","Djidja","Ouinhi","Zagnanado"]
+        };
+        var qb = ["Akpakpa","Fidjrossè","Cadjehoun","Ganhi","Zogbo","Houéyiho","Godomey","Ste Rita","Agla","Vêdoko","Gbégamey","Wologuèdè","Jéricho","Hindé","Mènontin","Togoudo","Tankpè","Zopa","Calavi Kpota","Zogbadjè","Aitchedji","Dota","Oganla","Djassin","Kouhounou","Guéma","Kpébié","Zongo","Agongointo","Saclo","Sodohomey","Pahou","Savi","Dantokpa","Houinta","Akassato","Agori","Onigbolo"];
+
+        var dSel = document.getElementById('departementSelect');
+        var cSel = document.getElementById('communeSelect');
+
+        Object.keys(bd).forEach(function(d){
+            var o = document.createElement('option'); o.value = d; o.textContent = d;
+            dSel.appendChild(o);
+        });
+        dSel.addEventListener('change', function(){
+            cSel.innerHTML = '<option value="">Sélectionner</option>';
+            cSel.disabled  = true;
+            var a = bd[this.value];
+            if(a && a.length){
+                a.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; cSel.appendChild(o); });
+                cSel.disabled = false;
+            }
+            clearErr(dSel);
+        });
+        cSel.addEventListener('change', function(){ if(this.value) clearErr(this); });
+
+        /* ── Autocomplete quartier ── */
+        var qIn = document.getElementById('quartierInput');
+        var qBx = document.getElementById('quartierSuggestions');
+        qIn.addEventListener('input', function(){
+            var v = this.value.toLowerCase(); qBx.innerHTML = '';
+            if(v.length < 1){ qBx.style.display='none'; return; }
+            if(this.value.trim().length >= 2) clearErr(this);
+            var r = qb.filter(function(q){ return q.toLowerCase().indexOf(v) !== -1; }).slice(0,8);
+            if(!r.length){ qBx.style.display='none'; return; }
+            r.forEach(function(q){
+                var li = document.createElement('li');
+                li.textContent = q;
+                li.addEventListener('click', function(){ qIn.value=q; qBx.style.display='none'; clearErr(qIn); });
+                qBx.appendChild(li);
+            });
+            qBx.style.display = 'block';
+        });
+        document.addEventListener('click', function(e){ if(!qIn.contains(e.target)) qBx.style.display='none'; });
+
+        /* ══════════════════════════════════════
+        GÉOLOCALISATION
+        ══════════════════════════════════════ */
+        var geoLat     = document.getElementById('geoLat');
+        var geoLng     = document.getElementById('geoLng');
+        var geoBox     = document.getElementById('geoBox');
+        var geoStatus  = document.getElementById('geoStatus');
+        var geoAddr    = document.getElementById('geoAddr');
+        var btnGeo     = document.getElementById('btnGeo');
+        var btnGeoReset= document.getElementById('btnGeoReset');
+
+        function showGeoStatus(t, m){ geoStatus.className='geo-status '+t; geoStatus.innerHTML=m; geoStatus.style.display='flex'; }
+
+        btnGeo.addEventListener('click', function(){
+            if(!navigator.geolocation){ showGeoStatus('err','<i class="fa fa-times-circle"></i> Non supporté.'); return; }
+            btnGeo.disabled = true;
+            showGeoStatus('loading','<i class="fa fa-spinner fa-spin"></i> Localisation en cours…');
+            navigator.geolocation.getCurrentPosition(
+                function(p){
+                    var lat = p.coords.latitude.toFixed(6);
+                    var lng = p.coords.longitude.toFixed(6);
+                    geoLat.value = lat; geoLng.value = lng;
+                    geoBox.style.display = 'block'; btnGeo.style.display = 'none';
+                    showGeoStatus('ok','<i class="fa fa-check-circle"></i> Position détectée.');
+                    fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json')
+                        .then(function(r){ return r.json(); })
+                        .then(function(d){ if(d && d.display_name) geoAddr.textContent = '📍 '+d.display_name; })
+                        .catch(function(){});
+                },
+                function(err){
+                    btnGeo.disabled = false;
+                    showGeoStatus('err', err.code===1 ? '<i class="fa fa-ban"></i> Accès refusé.' : '<i class="fa fa-exclamation-circle"></i> Impossible de localiser.');
+                },
+                { enableHighAccuracy:true, timeout:10000 }
+            );
+        });
+        btnGeoReset.addEventListener('click', function(){
+            geoLat.value=''; geoLng.value=''; geoAddr.textContent='';
+            geoBox.style.display='none'; btnGeo.style.display=''; btnGeo.disabled=false; geoStatus.style.display='none';
+        });
+
+        /* ══════════════════════════════════════
+        TYPE DE BIEN — AFFICHAGE DYNAMIQUE
+        ══════════════════════════════════════ */
+        var currentType = 'Maison';
+
+        function applyTypeBlocks(){
+            document.querySelectorAll('.type-block').forEach(function(b){
+                var types = b.getAttribute('data-types').split(',');
+                b.classList.toggle('d-none', types.indexOf(currentType) === -1);
+            });
+            var isTerrain  = (currentType === 'Terrain');
+            var cautionBox = document.getElementById('cautionBox');
+            if(cautionBox) cautionBox.style.display = isTerrain ? 'none' : '';
+
+            /* ── Masquer / afficher l'étape 5 (description) pour Terrain ── */
+            var sideStep5 = document.getElementById('sideStep5');
+            if(sideStep5){
+                if(isTerrain){ sideStep5.classList.add('skipped'); }
+                else          { sideStep5.classList.remove('skipped'); }
+            }
+
+            updatePiecesTotal();
+            syncSurfaceTotale();
+        }
+        applyTypeBlocks();
+
+        function initOcGrid(gridId, onChange){
+            var g = document.getElementById(gridId);
+            if(!g) return;
+            g.querySelectorAll('.oc').forEach(function(c){
+                c.addEventListener('click', function(){
+                    g.querySelectorAll('.oc').forEach(function(x){ x.classList.remove('s'); });
+                    c.classList.add('s');
+                    if(onChange) onChange(c.getAttribute('data-v'));
+                });
+            });
+        }
+        initOcGrid('typeGrid', function(v){ currentType = v; applyTypeBlocks(); });
+        initOcGrid('catGrid', null);
+
+        /* ── Compteurs eau / élec ── */
+        function initCompteurGrid(gridId, hiddenId){
+            var g = document.getElementById(gridId);
+            if(!g) return;
+            g.querySelectorAll('.compt-opt').forEach(function(opt){
+                opt.addEventListener('click', function(){
+                    g.querySelectorAll('.compt-opt').forEach(function(x){ x.classList.remove('s'); });
+                    opt.classList.add('s');
+                    var inp = opt.querySelector('input[type="radio"]');
+                    if(inp) inp.checked = true;
+                    var h = document.getElementById(hiddenId);
+                    if(h) h.value = opt.getAttribute('data-v');
+                });
+            });
+        }
+        initCompteurGrid('compteurEauGrid','compteurEauVal');
+        initCompteurGrid('compteurElecGrid','compteurElecVal');
+
+        /* ── Équipements (checkbox) ── */
+        // document.querySelectorAll('.eq').forEach(function(item){
+        //     item.addEventListener('click', function(){
+        //         item.classList.toggle('s');
+        //         var inp = item.querySelector('input');
+        //         if(inp) inp.checked = item.classList.contains('s');
+        //     });
+        // });
+        /* ── Équipements (checkbox) — VERSION CORRIGÉE ── */
+document.querySelectorAll('.eq').forEach(function(item){
+    var inp = item.querySelector('input[type="checkbox"]');
+    if(!inp) return;
+    inp.addEventListener('change', function(){
+        item.classList.toggle('s', inp.checked);
     });
-    document.getElementById('btnPrev').disabled = (n === 1);
-    var nBtn = document.getElementById('btnNext');
-    if(n === tot){ nBtn.innerHTML = '<i class="fa fa-check" style="margin-right:6px;"></i>Soumettre l\'annonce'; }
-    else         { nBtn.innerHTML = 'Suivant <i class="fa fa-arrow-right" style="margin-left:6px;"></i>'; }
-    currentStep = n;
-    updateMobileProgress(n);
-    window.scrollTo({top:0, behavior:'smooth'});
-    if(n === 7) fillRecap();
-}
-
-document.getElementById('btnNext').addEventListener('click', function(){
-    if(!validate(currentStep)) return;
-    var next = nextStepFor(currentStep);
-    if(next !== currentStep) goTo(next);
-    else submitForm();
-});
-document.getElementById('btnPrev').addEventListener('click', function(){
-    var prev = prevStepFor(currentStep);
-    if(prev !== currentStep) goTo(prev);
 });
 
-/* ══════════════════════════════════════
-   VALIDATION PAR ÉTAPE
-══════════════════════════════════════ */
-function validate(n){
-    if(n === 2){
-        var ok = true;
-        if(!dSel.value){ setErr(dSel,'Veuillez sélectionner un département.'); ok=false; }
-        if(!cSel.value){ setErr(cSel,'Veuillez sélectionner une commune.'); ok=false; }
-        if(qIn.value.trim().length < 2){ setErr(qIn,'Le quartier doit comporter au moins 2 caractères.'); ok=false; }
-        return ok;
-    }
-    if(n === 3){
-        if(currentType==='Maison' || currentType==='Appartement'){
-            var s = document.getElementById('surface');
-            if(!s.value || parseInt(s.value) <= 0){ setErr(s,'Indiquez la surface totale.'); return false; }
-            clearErr(s);
-        }
-        if(currentType === 'Terrain'){
+        /* ══════════════════════════════════════
+        TERRAIN — superficie auto
+        ══════════════════════════════════════ */
+        function updateTerrainSurface(){
+            var l  = parseFloat(document.getElementById('terrainLargeur') ? document.getElementById('terrainLargeur').value : 0) || 0;
+            var lo = parseFloat(document.getElementById('terrainLongueur') ? document.getElementById('terrainLongueur').value : 0) || 0;
             var st = document.getElementById('surfaceTerrain');
-            if(!st.value || parseInt(st.value) <= 0){ setErr(st,'Indiquez la superficie du terrain.'); return false; }
-            clearErr(st);
+            if(st && l > 0 && lo > 0){ st.value = Math.round(l * lo); syncSurfaceTotale(); }
         }
-        if(currentType === 'Bureaux'){
-            var sb = document.getElementById('surfaceBureau');
-            if(!sb.value || parseInt(sb.value) <= 0){ setErr(sb,'Indiquez la surface.'); return false; }
-            clearErr(sb);
+        var tL  = document.getElementById('terrainLargeur');
+        var tLo = document.getElementById('terrainLongueur');
+        if(tL)  tL.addEventListener('input', updateTerrainSurface);
+        if(tLo) tLo.addEventListener('input', updateTerrainSurface);
+
+        /* ══════════════════════════════════════
+        SURFACE TOTALE
+        ══════════════════════════════════════ */
+        function syncSurfaceTotale(){
+            var h = document.getElementById('surfaceTotaleHidden');
+            if(!h) return;
+            var map = { 'Maison':'surface', 'Appartement':'surface', 'Terrain':'surfaceTerrain', 'Bureaux':'surfaceBureau', 'Boutique':'surfaceBoutique' };
+            var id  = map[currentType];
+            if(!id) return;
+            var el  = document.getElementById(id);
+            h.value = (el && el.value) ? el.value : '0';
         }
-        if(currentType === 'Boutique'){
-            var sbo = document.getElementById('surfaceBoutique');
-            if(!sbo.value || parseInt(sbo.value) <= 0){ setErr(sbo,'Indiquez la surface.'); return false; }
-            clearErr(sbo);
+
+        function updateSurfaceTotale(){
+            var s  = parseFloat(document.getElementById('surfSalon')   ? document.getElementById('surfSalon').value   : 0) || 0;
+            var c  = parseFloat(document.getElementById('surfCuisine') ? document.getElementById('surfCuisine').value : 0) || 0;
+            var ch = parseFloat(document.getElementById('surfChambre') ? document.getElementById('surfChambre').value : 0) || 0;
+            var b  = parseFloat(document.getElementById('surfSdb')     ? document.getElementById('surfSdb').value     : 0) || 0;
+            var t  = s + c + ch + b;
+            var surfEl = document.getElementById('surface');
+            if(surfEl && t > 0) surfEl.value = t;
+            syncSurfaceTotale();
         }
-        syncSurfaceTotale();
-        return true;
-    }
-    if(n === 4){
-        if(isAnalyzingImages){ setImgErrorMessage('Analyse IA des images en cours…'); upz.scrollIntoView({behavior:'smooth',block:'center'}); return false; }
-        if(aFiles.length === 0){ setImgErrorMessage('Au moins une photo est obligatoire.'); upz.scrollIntoView({behavior:'smooth',block:'center'}); return false; }
-        return true;
-    }
-    /* Étape 5 : description toujours facultative */
-    if(n === 5){ return true; }
 
-    if(n === 6){
-        var pEl = document.getElementById('prix');
-        var pv  = pEl.value.replace(/\s/g,'');
-        if(!pv || isNaN(parseFloat(pv)) || parseFloat(pv) <= 0){
-            setErr(pEl,'Veuillez saisir un prix valide.');
-            document.getElementById('prixErr').style.display='block';
-            document.getElementById('fgPrix').classList.add('err');
-            return false;
+        ['surfSalon','surfCuisine','surfChambre','surfSdb'].forEach(function(id){
+            var el = document.getElementById(id);
+            if(el) el.addEventListener('input', updateSurfaceTotale);
+        });
+        ['surface','surfaceBureau','surfaceBoutique','surfaceTerrain'].forEach(function(id){
+            var el = document.getElementById(id);
+            if(el) el.addEventListener('input', syncSurfaceTotale);
+        });
+
+        /* ══════════════════════════════════════
+        PIÈCES +/-
+        ══════════════════════════════════════ */
+        function updatePiecesTotal(){
+            var salon   = parseInt(document.getElementById('nombreSalon')     ? document.getElementById('nombreSalon').value     : 0) || 0;
+            var cuisine = parseInt(document.getElementById('nombreCuisine')   ? document.getElementById('nombreCuisine').value   : 0) || 0;
+            var chambre = parseInt(document.getElementById('nombreChambre')   ? document.getElementById('nombreChambre').value   : 0) || 0;
+            var sdb     = parseInt(document.getElementById('nombreSalleBain') ? document.getElementById('nombreSalleBain').value : 0) || 0;
+            var total   = salon + cuisine + chambre + sdb;
+            var npEl    = document.getElementById('nombrePieces');   if(npEl) npEl.value  = total;
+            var pdEl    = document.getElementById('piecesTotalDisplay'); if(pdEl) pdEl.textContent = total;
+            if(document.getElementById('hSalon'))      document.getElementById('hSalon').value      = salon;
+            if(document.getElementById('hChambre'))    document.getElementById('hChambre').value    = chambre;
+            if(document.getElementById('hCuisineCount')) document.getElementById('hCuisineCount').value = cuisine;
+            var cards = { 'nombreSalon':'pcSalon', 'nombreCuisine':'pcCuisine', 'nombreChambre':'pcChambre', 'nombreSalleBain':'pcSdb' };
+            Object.keys(cards).forEach(function(fid){
+                var inp  = document.getElementById(fid);
+                var card = document.getElementById(cards[fid]);
+                if(inp && card) card.classList.toggle('has-value', parseInt(inp.value) > 0);
+            });
         }
-        clearErr(pEl);
-        document.getElementById('prixErr').style.display='none';
-        document.getElementById('fgPrix').classList.remove('err');
-        return true;
-    }
-    return true;
-}
 
-/* ══════════════════════════════════════
-   RÉCAPITULATIF
-══════════════════════════════════════ */
-function fillRecap(){
-    syncSurfaceTotale();
-    var g  = function(id){ var e=document.getElementById(id); return e?e.value:'—'; };
-    var oc = function(gid){ var c=document.querySelector('#'+gid+' .oc.s input'); return c?c.value:'—'; };
-    var isResid   = (currentType==='Maison' || currentType==='Appartement');
-    var isTerrain = (currentType==='Terrain');
+        document.querySelectorAll('.cb').forEach(function(b){
+            b.addEventListener('click', function(){
+                var tid = b.getAttribute('data-t');
+                var el  = document.getElementById(tid);
+                if(!el) return;
+                var v  = parseInt(el.value) || 0;
+                var mn = parseInt(el.min) || 0;
+                if(b.getAttribute('data-a') === '+') v++;
+                else if(v > mn) v--;
+                el.value = v;
+                if(['nombreSalon','nombreCuisine','nombreChambre','nombreSalleBain'].indexOf(tid) !== -1) updatePiecesTotal();
+            });
+        });
 
-    document.getElementById('rc-type').textContent = oc('typeGrid');
-    document.getElementById('rc-cat').textContent  = (oc('catGrid')==='louer')?'À louer':'À vendre';
-    document.getElementById('rc-dep').textContent  = dSel.selectedIndex>0 ? dSel.options[dSel.selectedIndex].text : '—';
-    document.getElementById('rc-com').textContent  = cSel.selectedIndex>0 ? cSel.options[cSel.selectedIndex].text : '—';
-    document.getElementById('rc-qrt').textContent  = qIn.value || '—';
+        /* ══════════════════════════════════════
+        OUI / NON
+        ══════════════════════════════════════ */
+        document.querySelectorAll('.yn-b[data-t]').forEach(function(b){
+            b.addEventListener('click', function(){
+                var p = b.parentElement;
+                p.querySelectorAll('.yn-b').forEach(function(x){ x.classList.remove('s'); });
+                b.classList.add('s');
+                var el = document.getElementById(b.getAttribute('data-t'));
+                if(el) el.value = b.getAttribute('data-v');
+            });
+        });
 
-    var lat = geoLat.value; var lng = geoLng.value;
-    document.getElementById('rc-geo').textContent = (lat && lng) ? lat+', '+lng : 'Non renseignée';
+        /* ══════════════════════════════════════
+        PHOTOS
+        ══════════════════════════════════════ */
+        var upz    = document.getElementById('upz');
+        var fInp   = document.getElementById('images');
+        var prG    = document.getElementById('prevG');
+        var imgErr = document.getElementById('imgErr');
+        var aFiles = [], MAX_IMG = 10 * 1024 * 1024;
 
-    var sv = '—';
-    if(isResid && g('surface') && g('surface')!=='0')                                    sv = g('surface')+' m²';
-    if(isTerrain && g('surfaceTerrain') && g('surfaceTerrain')!=='0')                     sv = g('surfaceTerrain')+' m²';
-    if(currentType==='Bureaux' && g('surfaceBureau') && g('surfaceBureau')!=='0')         sv = g('surfaceBureau')+' m²';
-    if(currentType==='Boutique' && g('surfaceBoutique') && g('surfaceBoutique')!=='0')    sv = g('surfaceBoutique')+' m²';
-    document.getElementById('rc-surf').textContent = sv;
+        upz.addEventListener('click', function(){ fInp.click(); });
+        upz.addEventListener('dragover', function(e){ e.preventDefault(); upz.classList.add('dz'); });
+        upz.addEventListener('dragleave', function(){ upz.classList.remove('dz'); });
+        upz.addEventListener('drop', function(e){ e.preventDefault(); upz.classList.remove('dz'); addF(e.dataTransfer.files); });
+        fInp.addEventListener('change', function(){ addF(this.files); this.value=''; });
 
-    document.querySelectorAll('.rc-resid').forEach(function(r){ r.style.display=isResid?'':'none'; });
-    document.querySelectorAll('.rc-terrain').forEach(function(r){ r.style.display=isTerrain?'':'none'; });
-    document.querySelectorAll('.rc-non-terrain').forEach(function(r){ r.style.display=isTerrain?'none':''; });
-
-    if(isResid){
-        document.getElementById('rc-salon').textContent        = g('nombreSalon');
-        document.getElementById('rc-chambre').textContent      = g('nombreChambre');
-        document.getElementById('rc-cuisine').textContent      = g('nombreCuisine');
-        document.getElementById('rc-sdb').textContent          = g('nombreSalleBain');
-        document.getElementById('rc-pieces').textContent       = g('nombrePieces');
-        document.getElementById('rc-park').textContent         = g('packing') || '—';
-        document.getElementById('rc-sanitaire').textContent    = g('sanitaire') || '—';
-        document.getElementById('rc-compteur-eau').textContent = g('compteurEauVal') || '—';
-        document.getElementById('rc-compteur-elec').textContent= g('compteurElecVal') || '—';
-    }
-    if(isTerrain){
-        document.getElementById('rc-titre').textContent       = g('titre_foncier') || '—';
-        document.getElementById('rc-superficie').textContent  = g('surfaceTerrain') ? g('surfaceTerrain')+' m²' : '—';
-        var autresEl = document.getElementById('autresCaracteristiquesTerrain');
-        var autresTxt = autresEl && autresEl.value.trim() ? autresEl.value.trim() : '—';
-        document.getElementById('rc-autres-carac').textContent = autresTxt;
-    }
-
-    document.getElementById('rc-prix').textContent = g('prix')+' FCFA';
-    document.getElementById('rc-neg').textContent  = g('negociable');
-    if(!isTerrain) document.getElementById('rc-cau').textContent = g('caution');
-
-    var eqList = [];
-    document.querySelectorAll('.eq.s').forEach(function(e){
-        var par = e.closest('.type-block');
-        if(par && par.classList.contains('d-none')) return;
-        var sp = e.querySelector('span'); if(sp) eqList.push(sp.textContent.trim());
-    });
-    document.getElementById('rc-eq').textContent = eqList.length ? eqList.join(', ') : 'Aucun';
-}
-
-/* ══════════════════════════════════════
-   SOUMISSION — PAIEMENT 5000 FCFA
-══════════════════════════════════════ */
-function submitAnnonce(transactionId){
-    syncSurfaceTotale();
-    var formData = new FormData(document.getElementById('form'));
-    if(transactionId) formData.append('transactionId', transactionId);
-    formData.delete('images[]');
-    aFiles.forEach(function(f){ formData.append('images[]', f); });
-    formData.delete('video');
-    if(vidFile) formData.append('video', vidFile);
-
-    $.ajax({
-        url: saveRoute, method: 'POST',
-        data: formData, contentType: false, processData: false,
-        headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
-        success: function(res){
-            var status = parseInt(res.status !== undefined ? res.status : res);
-            if(status === 200){
-                typeof showToast === 'function' && showToast('success','Annonce déposée avec succès');
-                setTimeout(function(){ window.location.href = retourRoute; }, 4000);
-            } else {
-                alert('Erreur lors de la soumission. Veuillez réessayer.');
+        async function addF(files){
+            var refused  = [];
+            var incoming = Array.prototype.slice.call(files || []);
+            if(!incoming.length) return;
+            imgErr.textContent = 'Analyse IA des images en cours…'; imgErr.style.display='block'; upz.style.borderColor='var(--amber)';
+            isAnalyzingImages = true;
+            for(var i=0; i<incoming.length; i++){
+                var f = incoming[i];
+                if(!f.type.startsWith('image/')){ refused.push('"'+f.name+'"'); continue; }
+                if(f.size > MAX_IMG){ refused.push('"'+f.name+'" > 10 Mo'); continue; }
+                var aiCheck = await validateImageWithMobileNet(f);
+                if(!aiCheck.accepted){ refused.push('"'+f.name+'" : hors immobilier'); continue; }
+                aFiles.push(f);
+                (function(fileRef){
+                    var r = new FileReader();
+                    r.onload = function(ev){
+                        var d   = document.createElement('div'); d.className='pv';
+                        var img = document.createElement('img'); img.src=ev.target.result;
+                        var dl  = document.createElement('button'); dl.className='pv-del'; dl.type='button'; dl.innerHTML='&times;';
+                        dl.addEventListener('click', function(){
+                            var idx = aFiles.indexOf(fileRef);
+                            if(idx !== -1) aFiles.splice(idx,1);
+                            d.remove(); checkImgErr();
+                        });
+                        d.appendChild(img); d.appendChild(dl); prG.appendChild(d);
+                    };
+                    r.readAsDataURL(f);
+                })(f);
             }
-        },
-        error: function(xhr){
-            var data       = xhr.responseJSON || {};
-            var imageError = data.errors && data.errors.images && data.errors.images.length ? data.errors.images[0] : null;
-            if(imageError){
-                imgErr.textContent = imageError; imgErr.style.display='block'; upz.style.borderColor='var(--red)';
-                goTo(4); upz.scrollIntoView({behavior:'smooth',block:'center'});
-                return;
+            isAnalyzingImages = false;
+            if(refused.length) setImgErrorMessage('Refusé(s) : '+refused.join(', '));
+            else checkImgErr();
+        }
+
+        function checkImgErr(){
+            if(isAnalyzingImages) return;
+            if(aFiles.length === 0) setImgErrorMessage('Au moins une photo est obligatoire.');
+            else clearImgErrorMessage();
+        }
+
+        /* ══════════════════════════════════════
+        VIDÉO
+        ══════════════════════════════════════ */
+        var vidUpz     = document.getElementById('vidUpz');
+        var vidInput   = document.getElementById('videoInput');
+        var vidPreview = document.getElementById('vidPreview');
+        var vidPlayer  = document.getElementById('vidPlayer');
+        var vidName    = document.getElementById('vidName');
+        var vidErr     = document.getElementById('vidErr');
+        var vidDel     = document.getElementById('vidDel');
+        var vidFile    = null;
+        var MAX_VID    = 100 * 1024 * 1024, MAX_VID_DUR = 65;
+
+        vidUpz.addEventListener('click', function(){ vidInput.click(); });
+        vidUpz.addEventListener('dragover', function(e){ e.preventDefault(); vidUpz.classList.add('dz'); });
+        vidUpz.addEventListener('dragleave', function(){ vidUpz.classList.remove('dz'); });
+        vidUpz.addEventListener('drop', function(e){ e.preventDefault(); vidUpz.classList.remove('dz'); if(e.dataTransfer.files.length) handleVideo(e.dataTransfer.files[0]); });
+        vidInput.addEventListener('change', function(){ if(this.files.length) handleVideo(this.files[0]); this.value=''; });
+
+        function handleVideo(f){
+            vidErr.style.display = 'none';
+            if(!f.type.startsWith('video/')){ vidErr.textContent='Ce n\'est pas une vidéo.'; vidErr.style.display='block'; return; }
+            if(f.size > MAX_VID){ vidErr.textContent='La vidéo dépasse 100 Mo.'; vidErr.style.display='block'; return; }
+            var url = URL.createObjectURL(f);
+            var tmp = document.createElement('video'); tmp.preload='metadata'; tmp.src=url;
+            tmp.onloadedmetadata = function(){
+                URL.revokeObjectURL(url);
+                if(tmp.duration > MAX_VID_DUR){ vidErr.textContent='Durée dépassée (max 1 min 5 sec).'; vidErr.style.display='block'; vidFile=null; return; }
+                vidFile = f;
+                vidPlayer.src = URL.createObjectURL(f);
+                vidName.textContent = f.name+' ('+Math.round(f.size/1024/1024*10)/10+' Mo)';
+                vidPreview.style.display = 'block'; vidUpz.style.display = 'none';
+            };
+            tmp.onerror = function(){ vidErr.textContent='Impossible de lire ce fichier.'; vidErr.style.display='block'; };
+        }
+        vidDel.addEventListener('click', function(){ vidFile=null; vidPlayer.src=''; vidPreview.style.display='none'; vidUpz.style.display=''; });
+
+        /* ══════════════════════════════════════
+        DESCRIPTION — compteur caractères
+        ══════════════════════════════════════ */
+        var dTa = document.getElementById('description');
+        var dCt = document.getElementById('descCt');
+        dTa.addEventListener('input', function(){
+            var len = this.value.length;
+            dCt.textContent = len+' / 800';
+            dCt.style.color = len > 700 ? 'var(--red)' : 'var(--ink3)';
+        });
+
+        /* ── Prix ── */
+        document.getElementById('prix').addEventListener('input', function(){
+            var p = this.value.replace(/\s/g,'');
+            if(p && !isNaN(parseFloat(p)) && parseFloat(p) > 0){
+                clearErr(this);
+                document.getElementById('prixErr').style.display = 'none';
+                document.getElementById('fgPrix').classList.remove('err');
             }
-            alert('Erreur serveur : '+xhr.status);
+        });
+
+        /* ══════════════════════════════════════
+        MOBILE PROGRESS
+        ══════════════════════════════════════ */
+        var stepLabels = ['Type de bien','Adresse','Caractéristiques','Photos & Vidéo','Description','Prix','Récapitulatif'];
+        function updateMobileProgress(n){
+            var lbl  = document.getElementById('mpStepLabel');
+            var num  = document.getElementById('mpStepNum');
+            var fill = document.getElementById('mpFill');
+            if(lbl)  lbl.textContent  = 'Étape '+n+' — '+stepLabels[n-1];
+            if(num)  num.textContent  = n+' / 7';
+            if(fill) fill.style.width = ((n/7)*100).toFixed(1)+'%';
         }
-    });
-}
 
-/* Nouveau flux : on sauvegarde d'abord, puis on lance le paiement (si requis).
-   - Première annonce gratuite : on active directement lors de la sauvegarde.
-   - Sinon : on crée l'annonce (statut=false) puis on lance Kkiapay ; à la réussite
-     on appelle `/paiement-success/{appartmentId}` pour activer et envoyer le mail.
-*/
-var currentAppartementId = null;
+        /* ══════════════════════════════════════
+        NAVIGATION ÉTAPES
+        — L'étape 5 est sautée si Terrain
+        ══════════════════════════════════════ */
+        var currentStep = 1, tot = 7;
 
-addSuccessListener(function(response){
-    $('#staticBackdrop2').modal('hide');
-    var txId = response && response.transactionId ? response.transactionId : null;
-    if(!currentAppartementId){ alert('Identifiant d\'annonce manquant. Rafraîchissez la page.'); return; }
-
-    $.ajax({
-        url: '/paiement-success/' + currentAppartementId,
-        method: 'POST',
-        data: { transactionId: txId, _token: $('meta[name="csrf-token"]').attr('content') },
-        success: function(res){
-            showToast && showToast('success','Paiement confirmé, annonce activée');
-            setTimeout(function(){ window.location.href = retourRoute; }, 2000);
-        },
-        error: function(xhr){
-            console.error(xhr.responseText);
-            alert('Erreur lors de la confirmation de paiement. Contactez le support.');
+        /* Calcule l'étape suivante en tenant compte du saut Terrain */
+        function nextStepFor(n){
+            if(n === 4 && currentType === 'Terrain') return 6;
+            return n < tot ? n + 1 : n;
         }
-    });
-});
-addFailedListener(function(){ alert('Paiement échoué. Veuillez réessayer.'); });
+        /* Calcule l'étape précédente en tenant compte du saut Terrain */
+        function prevStepFor(n){
+            if(n === 6 && currentType === 'Terrain') return 4;
+            return n > 1 ? n - 1 : n;
+        }
 
-/* submitForm global : sauvegarde initiale */
-window.submitForm = function(){
-    syncSurfaceTotale();
-    var ok  = true;
-    if(!dSel.value)                    { setErr(dSel,'Veuillez sélectionner un département.'); ok=false; }
-    if(!cSel.value)                    { setErr(cSel,'Veuillez sélectionner une commune.');    ok=false; }
-    if(qIn.value.trim().length < 2)    { setErr(qIn,'Quartier requis.');                       ok=false; }
-    var pEl = document.getElementById('prix');
-    var pv  = pEl ? pEl.value.replace(/\s/g,'') : '';
-    if(!pv || isNaN(parseFloat(pv)) || parseFloat(pv) <= 0){ if(pEl) setErr(pEl,'Prix invalide.'); ok=false; }
-    if(isAnalyzingImages)              { setImgErrorMessage('Analyse IA des images en cours…'); ok=false; }
-    if(aFiles.length === 0)            { setImgErrorMessage('Au moins une photo est obligatoire.'); ok=false; }
-    if(!ok) return;
-
-    fillRecap();
-
-    // Préparer les données et sauvegarder l'annonce (statut inactive si paiement requis)
-    var formData = new FormData(document.getElementById('form'));
-    formData.delete('images[]');
-    aFiles.forEach(function(f){ formData.append('images[]', f); });
-    // Si première annonce gratuite, demander activation immédiate
-    if(isFirstTime === true){ formData.append('activate', '1'); }
-
-    $.ajax({
-        url: saveRoute, method: 'POST', data: formData,
-        contentType: false, processData: false,
-        headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
-        success: function(res){
-            var status = parseInt(res.status !== undefined ? res.status : res);
-            if(status === 200){
-                var appId = res.appartement_id || res.id;
-                if(isFirstTime === true){
-                    showToast && showToast('success','Annonce déposée et publiée (offre gratuite)');
-                    setTimeout(function(){ window.location.href = retourRoute; }, 2000);
+        function goTo(n){
+            document.querySelectorAll('.sl-pane').forEach(function(p){ p.classList.remove('active'); });
+            document.getElementById('pane'+n).classList.add('active');
+            document.querySelectorAll('.sl-item').forEach(function(s){
+                var sn = parseInt(s.getAttribute('data-step'));
+                s.classList.remove('active','done');
+                /* Pour Terrain : l'étape 5 reste skipped, jamais done ni active */
+                if(currentType === 'Terrain' && sn === 5){
+                    s.querySelector('.si-st').textContent = 'Non applicable';
                     return;
                 }
-
-                // Sauvegarde OK, on lance le widget Kkiapay pour paiement
-                currentAppartementId = appId;
-                var frais = 5000; // ou calculer selon la durée
-                var ctnr = document.getElementById('payerContainer'); ctnr.innerHTML = '';
-                var kk = document.createElement('kkiapay-widget');
-                kk.setAttribute('amount', String(frais));
-                kk.setAttribute('key','a7f1e5c0652811efbf02478c5adba4b8');
-                kk.setAttribute('position','center');
-                kk.setAttribute('sandbox','true');
-                ctnr.appendChild(kk);
-                $('#staticBackdrop2').modal('show');
-            } else {
-                alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
-            }
-        },
-        error: function(xhr){
-            console.error(xhr.responseText);
-            alert('Erreur serveur : '+xhr.status+'. Veuillez réessayer.');
+                if(sn === n){ s.classList.add('active'); s.querySelector('.si-st').textContent = 'En cours'; }
+                else if(sn < n){ s.classList.add('done'); s.querySelector('.si-st').textContent = 'Complété ✓'; }
+                else{ s.querySelector('.si-st').textContent = 'À compléter'; }
+            });
+            document.getElementById('btnPrev').disabled = (n === 1);
+            var nBtn = document.getElementById('btnNext');
+            if(n === tot){ nBtn.innerHTML = '<i class="fa fa-check" style="margin-right:6px;"></i>Soumettre l\'annonce'; }
+            else         { nBtn.innerHTML = 'Suivant <i class="fa fa-arrow-right" style="margin-left:6px;"></i>'; }
+            currentStep = n;
+            updateMobileProgress(n);
+            window.scrollTo({top:0, behavior:'smooth'});
+            if(n === 7) fillRecap();
         }
-    });
-};
 
-updateMobileProgress(1);
-})();
-</script>
+        document.getElementById('btnNext').addEventListener('click', function(){
+            if(!validate(currentStep)) return;
+            var next = nextStepFor(currentStep);
+            if(next !== currentStep) goTo(next);
+            else submitForm();
+        });
+        document.getElementById('btnPrev').addEventListener('click', function(){
+            var prev = prevStepFor(currentStep);
+            if(prev !== currentStep) goTo(prev);
+        });
+
+        /* ══════════════════════════════════════
+        VALIDATION PAR ÉTAPE
+        ══════════════════════════════════════ */
+        function validate(n){
+            if(n === 2){
+                var ok = true;
+                if(!dSel.value){ setErr(dSel,'Veuillez sélectionner un département.'); ok=false; }
+                if(!cSel.value){ setErr(cSel,'Veuillez sélectionner une commune.'); ok=false; }
+                if(qIn.value.trim().length < 2){ setErr(qIn,'Le quartier doit comporter au moins 2 caractères.'); ok=false; }
+                return ok;
+            }
+            if(n === 3){
+                if(currentType==='Maison' || currentType==='Appartement'){
+                    var s = document.getElementById('surface');
+                    if(!s.value || parseInt(s.value) <= 0){ setErr(s,'Indiquez la surface totale.'); return false; }
+                    clearErr(s);
+                }
+                if(currentType === 'Terrain'){
+                    var st = document.getElementById('surfaceTerrain');
+                    if(!st.value || parseInt(st.value) <= 0){ setErr(st,'Indiquez la superficie du terrain.'); return false; }
+                    clearErr(st);
+                }
+                if(currentType === 'Bureaux'){
+                    var sb = document.getElementById('surfaceBureau');
+                    if(!sb.value || parseInt(sb.value) <= 0){ setErr(sb,'Indiquez la surface.'); return false; }
+                    clearErr(sb);
+                }
+                if(currentType === 'Boutique'){
+                    var sbo = document.getElementById('surfaceBoutique');
+                    if(!sbo.value || parseInt(sbo.value) <= 0){ setErr(sbo,'Indiquez la surface.'); return false; }
+                    clearErr(sbo);
+                }
+                syncSurfaceTotale();
+                return true;
+            }
+            if(n === 4){
+                if(isAnalyzingImages){ setImgErrorMessage('Analyse IA des images en cours…'); upz.scrollIntoView({behavior:'smooth',block:'center'}); return false; }
+                if(aFiles.length === 0){ setImgErrorMessage('Au moins une photo est obligatoire.'); upz.scrollIntoView({behavior:'smooth',block:'center'}); return false; }
+                return true;
+            }
+            /* Étape 5 : description toujours facultative */
+            if(n === 5){ return true; }
+
+            if(n === 6){
+                var pEl = document.getElementById('prix');
+                var pv  = pEl.value.replace(/\s/g,'');
+                if(!pv || isNaN(parseFloat(pv)) || parseFloat(pv) <= 0){
+                    setErr(pEl,'Veuillez saisir un prix valide.');
+                    document.getElementById('prixErr').style.display='block';
+                    document.getElementById('fgPrix').classList.add('err');
+                    return false;
+                }
+                clearErr(pEl);
+                document.getElementById('prixErr').style.display='none';
+                document.getElementById('fgPrix').classList.remove('err');
+                return true;
+            }
+            return true;
+        }
+
+        /* ══════════════════════════════════════
+        RÉCAPITULATIF
+        ══════════════════════════════════════ */
+        function fillRecap(){
+            syncSurfaceTotale();
+            var g  = function(id){ var e=document.getElementById(id); return e?e.value:'—'; };
+            var oc = function(gid){ var c=document.querySelector('#'+gid+' .oc.s input'); return c?c.value:'—'; };
+            var isResid   = (currentType==='Maison' || currentType==='Appartement');
+            var isTerrain = (currentType==='Terrain');
+
+            document.getElementById('rc-type').textContent = oc('typeGrid');
+            document.getElementById('rc-cat').textContent  = (oc('catGrid')==='louer')?'À louer':'À vendre';
+            document.getElementById('rc-dep').textContent  = dSel.selectedIndex>0 ? dSel.options[dSel.selectedIndex].text : '—';
+            document.getElementById('rc-com').textContent  = cSel.selectedIndex>0 ? cSel.options[cSel.selectedIndex].text : '—';
+            document.getElementById('rc-qrt').textContent  = qIn.value || '—';
+
+            var lat = geoLat.value; var lng = geoLng.value;
+            document.getElementById('rc-geo').textContent = (lat && lng) ? lat+', '+lng : 'Non renseignée';
+
+            var sv = '—';
+            if(isResid && g('surface') && g('surface')!=='0')                                    sv = g('surface')+' m²';
+            if(isTerrain && g('surfaceTerrain') && g('surfaceTerrain')!=='0')                     sv = g('surfaceTerrain')+' m²';
+            if(currentType==='Bureaux' && g('surfaceBureau') && g('surfaceBureau')!=='0')         sv = g('surfaceBureau')+' m²';
+            if(currentType==='Boutique' && g('surfaceBoutique') && g('surfaceBoutique')!=='0')    sv = g('surfaceBoutique')+' m²';
+            document.getElementById('rc-surf').textContent = sv;
+
+            document.querySelectorAll('.rc-resid').forEach(function(r){ r.style.display=isResid?'':'none'; });
+            document.querySelectorAll('.rc-terrain').forEach(function(r){ r.style.display=isTerrain?'':'none'; });
+            document.querySelectorAll('.rc-non-terrain').forEach(function(r){ r.style.display=isTerrain?'none':''; });
+
+            if(isResid){
+                document.getElementById('rc-salon').textContent        = g('nombreSalon');
+                document.getElementById('rc-chambre').textContent      = g('nombreChambre');
+                document.getElementById('rc-cuisine').textContent      = g('nombreCuisine');
+                document.getElementById('rc-sdb').textContent          = g('nombreSalleBain');
+                document.getElementById('rc-pieces').textContent       = g('nombrePieces');
+                document.getElementById('rc-park').textContent         = g('packing') || '—';
+                document.getElementById('rc-sanitaire').textContent    = g('sanitaire') || '—';
+                document.getElementById('rc-compteur-eau').textContent = g('compteurEauVal') || '—';
+                document.getElementById('rc-compteur-elec').textContent= g('compteurElecVal') || '—';
+            }
+            if(isTerrain){
+                document.getElementById('rc-titre').textContent       = g('titre_foncier') || '—';
+                document.getElementById('rc-superficie').textContent  = g('surfaceTerrain') ? g('surfaceTerrain')+' m²' : '—';
+                var autresEl = document.getElementById('autresCaracteristiquesTerrain');
+                var autresTxt = autresEl && autresEl.value.trim() ? autresEl.value.trim() : '—';
+                document.getElementById('rc-autres-carac').textContent = autresTxt;
+            }
+
+            document.getElementById('rc-prix').textContent = g('prix')+' FCFA';
+            document.getElementById('rc-neg').textContent  = g('negociable');
+            if(!isTerrain) document.getElementById('rc-cau').textContent = g('caution');
+
+            var eqList = [];
+            document.querySelectorAll('.eq.s').forEach(function(e){
+                var par = e.closest('.type-block');
+                if(par && par.classList.contains('d-none')) return;
+                var sp = e.querySelector('span'); if(sp) eqList.push(sp.textContent.trim());
+            });
+            document.getElementById('rc-eq').textContent = eqList.length ? eqList.join(', ') : 'Aucun';
+        }
+
+        /* ══════════════════════════════════════
+        SOUMISSION — PAIEMENT 5000 FCFA
+        ══════════════════════════════════════ */
+        function submitAnnonce(transactionId){
+            syncSurfaceTotale();
+            var formData = new FormData(document.getElementById('form'));
+            if(transactionId) formData.append('transactionId', transactionId);
+            formData.delete('images[]');
+            aFiles.forEach(function(f){ formData.append('images[]', f); });
+            formData.delete('video');
+            if(vidFile) formData.append('video', vidFile);
+
+            $.ajax({
+                url: saveRoute, method: 'POST',
+                data: formData, contentType: false, processData: false,
+                headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                success: function(res){
+                    var status = parseInt(res.status !== undefined ? res.status : res);
+                    if(status === 200){
+                        typeof showToast === 'function' && showToast('success','Annonce déposée avec succès');
+                        setTimeout(function(){ window.location.href = retourRoute; }, 4000);
+                    } else {
+                        alert('Erreur lors de la soumission. Veuillez réessayer.');
+                    }
+                },
+                error: function(xhr){
+                    var data       = xhr.responseJSON || {};
+                    var imageError = data.errors && data.errors.images && data.errors.images.length ? data.errors.images[0] : null;
+                    if(imageError){
+                        imgErr.textContent = imageError; imgErr.style.display='block'; upz.style.borderColor='var(--red)';
+                        goTo(4); upz.scrollIntoView({behavior:'smooth',block:'center'});
+                        return;
+                    }
+                    alert('Erreur serveur : '+xhr.status);
+                }
+            });
+        }
+
+        /* Nouveau flux : on sauvegarde d'abord, puis on lance le paiement (si requis).
+        - Première annonce gratuite : on active directement lors de la sauvegarde.
+        - Sinon : on crée l'annonce (statut=false) puis on lance Kkiapay ; à la réussite
+            on appelle `/paiement-success/{appartmentId}` pour activer et envoyer le mail.
+        */
+        var currentAppartementId = null;
+
+        addSuccessListener(function(response){
+            $('#staticBackdrop2').modal('hide');
+            var txId = response && response.transactionId ? response.transactionId : null;
+            if(!currentAppartementId){ alert('Identifiant d\'annonce manquant. Rafraîchissez la page.'); return; }
+
+            $.ajax({
+                url: '/paiement-success/' + currentAppartementId,
+                method: 'POST',
+                data: { transactionId: txId, _token: $('meta[name="csrf-token"]').attr('content') },
+                success: function(res){
+                    showToast && showToast('success','Paiement confirmé, annonce activée');
+                    setTimeout(function(){ window.location.href = retourRoute; }, 2000);
+                },
+                error: function(xhr){
+                    console.error(xhr.responseText);
+                    alert('Erreur lors de la confirmation de paiement. Contactez le support.');
+                }
+            });
+        });
+        addFailedListener(function(){ alert('Paiement échoué. Veuillez réessayer.'); });
+
+        /* submitForm global : sauvegarde initiale */
+        window.submitForm = function(){
+            syncSurfaceTotale();
+            var ok  = true;
+            if(!dSel.value)                    { setErr(dSel,'Veuillez sélectionner un département.'); ok=false; }
+            if(!cSel.value)                    { setErr(cSel,'Veuillez sélectionner une commune.');    ok=false; }
+            if(qIn.value.trim().length < 2)    { setErr(qIn,'Quartier requis.');                       ok=false; }
+            var pEl = document.getElementById('prix');
+            var pv  = pEl ? pEl.value.replace(/\s/g,'') : '';
+            if(!pv || isNaN(parseFloat(pv)) || parseFloat(pv) <= 0){ if(pEl) setErr(pEl,'Prix invalide.'); ok=false; }
+            if(isAnalyzingImages)              { setImgErrorMessage('Analyse IA des images en cours…'); ok=false; }
+            if(aFiles.length === 0)            { setImgErrorMessage('Au moins une photo est obligatoire.'); ok=false; }
+            if(!ok) return;
+
+            fillRecap();
+
+            // Préparer les données et sauvegarder l'annonce (statut inactive si paiement requis)
+            var formData = new FormData(document.getElementById('form'));
+            formData.delete('images[]');
+            aFiles.forEach(function(f){ formData.append('images[]', f); });
+            // Si première annonce gratuite, demander activation immédiate
+            if(isFirstTime === true){ formData.append('activate', '1'); }
+
+            $.ajax({
+                url: saveRoute, method: 'POST', data: formData,
+                contentType: false, processData: false,
+                headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                success: function(res){
+                    var status = parseInt(res.status !== undefined ? res.status : res);
+                    if(status === 200){
+                        var appId = res.appartement_id || res.id;
+                        if(isFirstTime === true){
+                            showToast && showToast('success','Annonce déposée et publiée (offre gratuite)');
+                            setTimeout(function(){ window.location.href = retourRoute; }, 2000);
+                            return;
+                        }
+
+                        // Sauvegarde OK, on lance le widget Kkiapay pour paiement
+                        currentAppartementId = appId;
+                        var frais = 5000; // ou calculer selon la durée
+                        var ctnr = document.getElementById('payerContainer'); ctnr.innerHTML = '';
+                        var kk = document.createElement('kkiapay-widget');
+                        kk.setAttribute('amount', String(frais));
+                        kk.setAttribute('key','a7f1e5c0652811efbf02478c5adba4b8');
+                        kk.setAttribute('position','center');
+                        kk.setAttribute('sandbox','true');
+                        ctnr.appendChild(kk);
+                        $('#staticBackdrop2').modal('show');
+                    } else {
+                        alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
+                    }
+                },
+                error: function(xhr){
+                    console.error(xhr.responseText);
+                    alert('Erreur serveur : '+xhr.status+'. Veuillez réessayer.');
+                }
+            });
+        };
+
+        updateMobileProgress(1);
+        })();
+    </script>
 
 @endsection

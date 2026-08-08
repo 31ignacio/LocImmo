@@ -70,7 +70,7 @@
 
         <p>Vous pouvez maintenant vous connecter à votre compte et accéder à toutes ses fonctionnalités.</p>
 
-        <p>Si vous avez des questions ou des préoccupations, n'hésitez pas à nous contacter à l'adresse e-mail <a href="mailto:ariexpertize@gmail.com">ariexpertize@gmail.com</a> ou par WhatsApp/Appel au <a href="tel:+22940735335">+229 40 73 53 35</a>.</p>
+        <p>Si vous avez des questions ou des préoccupations, n'hésitez pas à nous contacter via le formulaire de contact sur notre site.</p>
 
         <p>Merci et à bientôt sur notre plateforme !</p>
 

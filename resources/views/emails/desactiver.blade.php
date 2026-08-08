@@ -68,7 +68,7 @@
 
         <p>Nous vous informons que votre compte a été désactivé par l'administrateur du site.</p>
 
-        <p>Si vous avez des questions ou si vous souhaitez obtenir de l'aide, veuillez contacter l'administrateur par e-mail à l'adresse <a href="mailto:ariexpertize@gmail.com">ariexpertize@gmail.com</a> ou via WhatsApp/Appel au numéro <a href="https://wa.me/22940735335">+229 40 73 53 35</a>.</p>
+        <p>Si vous avez des questions ou si vous souhaitez obtenir de l'aide, veuillez contacter l'administrateur via le formulaire de contact sur notre site.</p>
 
         <p>Merci de votre compréhension.</p>
 

@@ -38,7 +38,6 @@ Route::get('/search/appartements', [AppartementController::class, 'searchApparte
 
  //detail d'un appartement
     Route::get('appartement/detail/{appartement}', [AppartementController::class, 'appartementDetail'])->name('appartement.detail');
-     Route::post('/appartement/reaction', [AppartementController::class, 'reaction'])->name('appartement.reaction');
 
 Route::get('/newsletter/unsubscribe/{email}', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 
@@ -106,9 +105,10 @@ Route::middleware(['auth'])->group(function () {
     //entreprise
     Route::get('/Entreprise/liste', [EntrepriseController::class, 'index'])->name('entreprise.liste');
     Route::get('/Entreprise/espace', [EntrepriseController::class, 'espace'])->name('entreprise.espace');
-    Route::get('/entreprise/{id}', [EntrepriseController::class, 'show'])->name('entreprise.show');
     Route::put('/entreprise/{id}/activer', [EntrepriseController::class, 'activer'])->name('entreprise.activer');
     Route::put('/entreprise/{id}/desactiver', [EntrepriseController::class, 'desactiver'])->name('entreprise.desactiver');
+    Route::delete('/entreprise/{id}/supprimer', [EntrepriseController::class, 'destroy'])->name('entreprise.destroy');
+
 
     //end
 

@@ -64,10 +64,11 @@ class AppartementController extends Controller
 
 
     /**
-      * l'enregistremen des annonces  
+     * l'enregistremen des annonces  
     */ 
     public function appartementStore(Request $request)
     {
+
         try {
             $request->validate([
                 'type'        => 'required|in:Maison,Appartement,Bureaux,Boutique,Terrain',
@@ -404,32 +405,38 @@ class AppartementController extends Controller
         }
     }
     /**
-     * Envoyer un mail par le formulaire de contact
+     * Envoyer un mail au propriétaire d'un appartement (au niveau de la page de détail)
     */
-    public function mailProprietaire(Request $request){
-
+    public function mailProprietaire(Request $request)
+    {
         $request->validate([
-            'nom'=>'required',
-            'telephone'=>'required',
-            'message'=>'required',
-            'email'=>'required'
-
+            'nom'             => 'required',
+            'telephone'       => 'required',
+            'message'         => 'required',
+            'email'           => 'required|email',
+            'appartement_id'  => 'required|exists:appartements,id',
         ], [
-            'nom.required'=>' Votre nom est requis',
-            'message.required'=>'Le message est requis',
-            'telephone.required'=>'Le numéro de téléphone est requis',
-            'email.required'=>'Votre email est requis',
-            
+            'nom.required'            => 'Votre nom est requis',
+            'message.required'       => 'Le message est requis',
+            'telephone.required'     => 'Le numéro de téléphone est requis',
+            'email.required'         => 'Votre email est requis',
+            'email.email'            => 'Veuillez saisir une adresse email valide',
+            'appartement_id.required'=> 'Annonce introuvable',
+            'appartement_id.exists'  => 'Cette annonce n\'existe plus',
         ]);
-        $entreprise= $request->entreprise;
-        $nom= $request->nom;
-        $telephone = $request->telephone;
-        $message = $request->message;
-        $email= $request->email;
 
-        Mail::to($entreprise)->send(new ContacteProprietaireAppartementMail($nom, $telephone, $email, $message));
+        $entreprise   = $request->entreprise;
+        $nom          = $request->nom;
+        $telephone    = $request->telephone;
+        $message      = $request->message;
+        $email        = $request->email;
+        $appartement  = Appartement::findOrFail($request->appartement_id);
 
-        return back()->with('success', 'Votre message a bien été transmis .');
+        Mail::to($entreprise)->send(
+            new ContacteProprietaireAppartementMail($nom, $telephone, $email, $message, $appartement)
+        );
+
+        return back()->with('success', 'Votre message a bien été transmis.');
     }
 
     /**
@@ -440,231 +447,231 @@ class AppartementController extends Controller
     }
 
 
-/**
- * Mise à jour d'une annonce immobilière.
- *
- * Gère tous les nouveaux champs :
- *  - Géolocalisation (latitude / longitude)
- *  - Pièces détaillées (nombreSalon, nombreChambre, nombreSalleBain)
- *  - Sanitaire, proprio_vit, compteur_perso
- *  - Vidéo (ajout / conservation / suppression)
- *  - Photos 10 Mo
- *
- * Route : PUT /appartement/{id}
- * Nom   : appartement.update
- */
-public function appartementUpdate(Request $request, $id)
-{
-    try {
-        $appartement = Appartement::findOrFail($id);
+    /**
+     * Mise à jour d'une annonce immobilière.
+     *
+     * Gère tous les nouveaux champs :
+     *  - Géolocalisation (latitude / longitude)
+     *  - Pièces détaillées (nombreSalon, nombreChambre, nombreSalleBain)
+     *  - Sanitaire, proprio_vit, compteur_perso
+     *  - Vidéo (ajout / conservation / suppression)
+     *  - Photos 10 Mo
+     *
+     * Route : PUT /appartement/{id}
+     * Nom   : appartement.update
+     */
+    public function appartementUpdate(Request $request, $id)
+    {
+        try {
+            $appartement = Appartement::findOrFail($id);
 
-        /* ── Autorisation ── */
-        $entreprise = Entreprise::where('user_id', auth()->id())->first();
-        if (!$entreprise || $appartement->entreprise_id !== $entreprise->id) {
-            return response()->json(['status' => 403, 'message' => 'Non autorisé'], 403);
-        }
+            /* ── Autorisation ── */
+            $entreprise = Entreprise::where('user_id', auth()->id())->first();
+            if (!$entreprise || $appartement->entreprise_id !== $entreprise->id) {
+                return response()->json(['status' => 403, 'message' => 'Non autorisé'], 403);
+            }
 
-        /* ── Validation ── */
-        $request->validate([
-            'type'         => 'required|in:Maison,Appartement,Bureaux,Boutique,Terrain',
-            'categorie'    => 'required|in:louer,vendre',
-            'departement'  => 'required|string',
-            'quartier'     => 'required|string|min:2',
-            'prix'         => 'required',
-            'description'  => 'required|string|min:10',
-            'images.*'     => 'image|mimes:jpg,jpeg,png,webp|max:10240', // 10 Mo
-            'video'        => 'nullable|mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:102400',
-            'latitude'     => 'nullable|numeric',
-            'longitude'    => 'nullable|numeric',
-        ]);
+            /* ── Validation ── */
+            $request->validate([
+                'type'         => 'required|in:Maison,Appartement,Bureaux,Boutique,Terrain',
+                'categorie'    => 'required|in:louer,vendre',
+                'departement'  => 'required|string',
+                'quartier'     => 'required|string|min:2',
+                'prix'         => 'required',
+                'description'  => 'required|string|min:10',
+                'images.*'     => 'image|mimes:jpg,jpeg,png,webp|max:10240', // 10 Mo
+                'video'        => 'nullable|mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:102400',
+                'latitude'     => 'nullable|numeric',
+                'longitude'    => 'nullable|numeric',
+            ]);
 
-        /* ── Prix ── */
-        $prix = (float) preg_replace('/\s+/', '', $request->prix);
+            /* ── Prix ── */
+            $prix = (float) preg_replace('/\s+/', '', $request->prix);
 
-        /* ── Surface ── */
-        $surface = $request->type === 'Boutique'
-            ? (float) ($request->surface_boutique ?? 0)
-            : (float) ($request->surface ?? 0);
+            /* ── Surface ── */
+            $surface = $request->type === 'Boutique'
+                ? (float) ($request->surface_boutique ?? 0)
+                : (float) ($request->surface ?? 0);
 
-        /* ── Pièces ── */
-        $isResid = in_array($request->type, ['Maison', 'Appartement']);
+            /* ── Pièces ── */
+            $isResid = in_array($request->type, ['Maison', 'Appartement']);
 
-        $nombreSalon     = $isResid ? (int) ($request->nombreSalon     ?? 0) : 0;
-        $nombreChambre   = $isResid ? (int) ($request->nombreChambre   ?? 0) : 0;
-        $nombreSalleBain = $isResid ? (int) ($request->nombreSalleBain ?? 0) : 0;
+            $nombreSalon     = $isResid ? (int) ($request->nombreSalon     ?? 0) : 0;
+            $nombreChambre   = $isResid ? (int) ($request->nombreChambre   ?? 0) : 0;
+            $nombreSalleBain = $isResid ? (int) ($request->nombreSalleBain ?? 0) : 0;
 
-        $nombrePieces = $isResid
-            ? ($nombreSalon + $nombreChambre + $nombreSalleBain)
-            : (int) ($request->nombrePiecesBureaux ?? $request->nombrePieces ?? 1);
+            $nombrePieces = $isResid
+                ? ($nombreSalon + $nombreChambre + $nombreSalleBain)
+                : (int) ($request->nombrePiecesBureaux ?? $request->nombrePieces ?? 1);
 
-        /* ── Équipements ── */
-        $clime     = $request->clime     ?? 'Non';
-        $wifi      = in_array($request->type, ['Boutique'])
-                     ? 'Non'
-                     : ($request->wifi ?? 'Non');
-        $securite  = $request->securite  ?? 'Non';
-        $terasse   = in_array($request->type, ['Bureaux', 'Boutique'])
-                     ? 'Non'
-                     : ($request->terasse ?? 'Non');
-        $cuisine   = in_array($request->type, ['Bureaux', 'Boutique'])
-                     ? 'Non'
-                     : ($request->cuisine ?? 'Non');
-        $entretien = in_array($request->type, ['Bureaux', 'Boutique'])
-                     ? 'Non inclus'
-                     : ($request->entretien ?? 'Non inclus');
-
-        /* ── Options résidentielles ── */
-        $meuble       = in_array($request->type, ['Bureaux', 'Boutique'])
-                        ? 'Non meublé'
-                        : ($request->meuble ?? 'Non meublé');
-        $collocation  = in_array($request->type, ['Bureaux', 'Boutique'])
+            /* ── Équipements ── */
+            $clime     = $request->clime     ?? 'Non';
+            $wifi      = in_array($request->type, ['Boutique'])
                         ? 'Non'
-                        : ($request->collocation ?? 'Non');
-        $packing      = $request->packing ?? $request->packing_bureaux ?? 'Non';
+                        : ($request->wifi ?? 'Non');
+            $securite  = $request->securite  ?? 'Non';
+            $terasse   = in_array($request->type, ['Bureaux', 'Boutique'])
+                        ? 'Non'
+                        : ($request->terasse ?? 'Non');
+            $cuisine   = in_array($request->type, ['Bureaux', 'Boutique'])
+                        ? 'Non'
+                        : ($request->cuisine ?? 'Non');
+            $entretien = in_array($request->type, ['Bureaux', 'Boutique'])
+                        ? 'Non inclus'
+                        : ($request->entretien ?? 'Non inclus');
 
-        /* Nouveaux champs */
-        $sanitaire    = $isResid
-                        ? ($request->sanitaire         ?? 'Non')
-                        : ($request->sanitaire_bureaux ?? 'Non');
-        $proprioVit   = $isResid
-                        ? ($request->proprio_vit       ?? 'Non')
-                        : 'Non';
-        $compteurPerso = $isResid
-                        ? ($request->compteur_perso    ?? 'Non')
-                        : ($request->compteur_bureaux  ?? 'Non');
+            /* ── Options résidentielles ── */
+            $meuble       = in_array($request->type, ['Bureaux', 'Boutique'])
+                            ? 'Non meublé'
+                            : ($request->meuble ?? 'Non meublé');
+            $collocation  = in_array($request->type, ['Bureaux', 'Boutique'])
+                            ? 'Non'
+                            : ($request->collocation ?? 'Non');
+            $packing      = $request->packing ?? $request->packing_bureaux ?? 'Non';
 
-        /* ── Disponibilité ── */
-        $dispoImmed = $request->boolean('dispo_immed');
-        $dispoDate  = $dispoImmed ? null : ($request->disponible_date ?: null);
+            /* Nouveaux champs */
+            $sanitaire    = $isResid
+                            ? ($request->sanitaire         ?? 'Non')
+                            : ($request->sanitaire_bureaux ?? 'Non');
+            $proprioVit   = $isResid
+                            ? ($request->proprio_vit       ?? 'Non')
+                            : 'Non';
+            $compteurPerso = $isResid
+                            ? ($request->compteur_perso    ?? 'Non')
+                            : ($request->compteur_bureaux  ?? 'Non');
 
-        /* ── Géolocalisation ── */
-        $latitude  = $request->filled('latitude')  ? (float) $request->latitude  : null;
-        $longitude = $request->filled('longitude') ? (float) $request->longitude : null;
+            /* ── Disponibilité ── */
+            $dispoImmed = $request->boolean('dispo_immed');
+            $dispoDate  = $dispoImmed ? null : ($request->disponible_date ?: null);
 
-        /* ── Gestion photos ── */
-        // 1) Photos conservées (non supprimées par l'utilisateur)
-        $keptImages = array_values(array_filter(
-            explode('|', $request->images_to_keep ?? '')
-        ));
+            /* ── Géolocalisation ── */
+            $latitude  = $request->filled('latitude')  ? (float) $request->latitude  : null;
+            $longitude = $request->filled('longitude') ? (float) $request->longitude : null;
 
-        // 2) Nouvelles photos uploadées
-        $newImages = [];
-        if ($request->hasFile('images')) {
-            $this->rejectNonRealEstateImages($request->file('images'));
-        }
+            /* ── Gestion photos ── */
+            // 1) Photos conservées (non supprimées par l'utilisateur)
+            $keptImages = array_values(array_filter(
+                explode('|', $request->images_to_keep ?? '')
+            ));
 
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                $name = uniqid('img_') . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('images/appartement'), $name);
-                $newImages[] = 'images/appartement/' . $name;
+            // 2) Nouvelles photos uploadées
+            $newImages = [];
+            if ($request->hasFile('images')) {
+                $this->rejectNonRealEstateImages($request->file('images'));
             }
-        }
 
-        $allImages = array_merge($keptImages, $newImages);
-        $imagesStr = implode('|', array_filter($allImages));
-
-        // Si aucune image → garder les anciennes (sécurité)
-        if (empty($imagesStr)) {
-            $imagesStr = $appartement->images;
-        }
-
-        /* ── Gestion vidéo ── */
-        $videoPath = $appartement->video; // conserver par défaut
-
-        // video_to_keep=0 → l'utilisateur a cliqué "Supprimer" sur la vidéo existante
-        if ($request->input('video_to_keep') === '0') {
-            // Supprimer physiquement l'ancienne vidéo si elle existe
-            if ($appartement->video && file_exists(public_path($appartement->video))) {
-                @unlink(public_path($appartement->video));
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    $name = uniqid('img_') . '.' . $file->getClientOriginalExtension();
+                    $file->move(public_path('images/appartement'), $name);
+                    $newImages[] = 'images/appartement/' . $name;
+                }
             }
-            $videoPath = null;
-        }
 
-        // Une nouvelle vidéo a été envoyée → elle remplace l'ancienne
-        if ($request->hasFile('video')) {
-            // Supprimer l'ancienne
-            if ($appartement->video && file_exists(public_path($appartement->video))) {
-                @unlink(public_path($appartement->video));
+            $allImages = array_merge($keptImages, $newImages);
+            $imagesStr = implode('|', array_filter($allImages));
+
+            // Si aucune image → garder les anciennes (sécurité)
+            if (empty($imagesStr)) {
+                $imagesStr = $appartement->images;
             }
-            $vid  = $request->file('video');
-            $name = uniqid('vid_') . '.' . $vid->getClientOriginalExtension();
-            $vid->move(public_path('images/appartement/videos'), $name);
-            $videoPath = 'images/appartement/videos/' . $name;
+
+            /* ── Gestion vidéo ── */
+            $videoPath = $appartement->video; // conserver par défaut
+
+            // video_to_keep=0 → l'utilisateur a cliqué "Supprimer" sur la vidéo existante
+            if ($request->input('video_to_keep') === '0') {
+                // Supprimer physiquement l'ancienne vidéo si elle existe
+                if ($appartement->video && file_exists(public_path($appartement->video))) {
+                    @unlink(public_path($appartement->video));
+                }
+                $videoPath = null;
+            }
+
+            // Une nouvelle vidéo a été envoyée → elle remplace l'ancienne
+            if ($request->hasFile('video')) {
+                // Supprimer l'ancienne
+                if ($appartement->video && file_exists(public_path($appartement->video))) {
+                    @unlink(public_path($appartement->video));
+                }
+                $vid  = $request->file('video');
+                $name = uniqid('vid_') . '.' . $vid->getClientOriginalExtension();
+                $vid->move(public_path('images/appartement/videos'), $name);
+                $videoPath = 'images/appartement/videos/' . $name;
+            }
+
+            /* ── Mise à jour en BD ── */
+            $appartement->update([
+                // Type & catégorie
+                'type'              => $request->type,
+                'categorie'         => $request->categorie,
+                'duree'             => $request->duree,
+
+                // Adresse
+                'departement'       => $request->departement,
+                'commune'           => $request->commune,
+                'quartier'          => $request->quartier,
+                'latitude'          => $latitude,
+                'longitude'         => $longitude,
+
+                // Caractéristiques
+                'surface'           => $surface,
+                'nombrePieces'      => $nombrePieces,
+                'nombreSalon'       => $nombreSalon,
+                'nombreChambre'     => $nombreChambre,
+                'nombreSalleBain'   => $nombreSalleBain,
+
+                // Disponibilité
+                'disponible_date'   => $dispoDate,
+                'dispo_immed'       => $dispoImmed,
+
+                // Options
+                'meuble'            => $meuble,
+                'collocation'       => $collocation,
+                'packing'           => $packing,
+                'sanitaire'         => $sanitaire,
+                'proprio_vit'       => $proprioVit,
+                'compteur_perso'    => $compteurPerso,
+
+                // Équipements
+                'clime'             => $clime,
+                'wifi'              => $wifi,
+                'securite'          => $securite,
+                'terasse'           => $terasse,
+                'cuisine'           => $cuisine,
+                'entretien'         => $entretien,
+
+                // Prix
+                'prix'              => $prix,
+                'negociable'        => $request->negociable ?? 'Non',
+                'caution'           => $request->caution    ?? '0',
+
+                // Contenu
+                'description'       => $request->description,
+                'images'            => $imagesStr,
+                'video'             => $videoPath,
+            ]);
+
+            return response()->json(['status' => 200]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status'  => 422,
+                'message' => 'Données invalides',
+                'errors'  => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            Log::error('[AppartementUpdate] Exception', [
+                'appartement_id' => $id,
+                'message' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'status'  => 500,
+                'message' => $e->getMessage(),
+            ]);
         }
-
-        /* ── Mise à jour en BD ── */
-        $appartement->update([
-            // Type & catégorie
-            'type'              => $request->type,
-            'categorie'         => $request->categorie,
-            'duree'             => $request->duree,
-
-            // Adresse
-            'departement'       => $request->departement,
-            'commune'           => $request->commune,
-            'quartier'          => $request->quartier,
-            'latitude'          => $latitude,
-            'longitude'         => $longitude,
-
-            // Caractéristiques
-            'surface'           => $surface,
-            'nombrePieces'      => $nombrePieces,
-            'nombreSalon'       => $nombreSalon,
-            'nombreChambre'     => $nombreChambre,
-            'nombreSalleBain'   => $nombreSalleBain,
-
-            // Disponibilité
-            'disponible_date'   => $dispoDate,
-            'dispo_immed'       => $dispoImmed,
-
-            // Options
-            'meuble'            => $meuble,
-            'collocation'       => $collocation,
-            'packing'           => $packing,
-            'sanitaire'         => $sanitaire,
-            'proprio_vit'       => $proprioVit,
-            'compteur_perso'    => $compteurPerso,
-
-            // Équipements
-            'clime'             => $clime,
-            'wifi'              => $wifi,
-            'securite'          => $securite,
-            'terasse'           => $terasse,
-            'cuisine'           => $cuisine,
-            'entretien'         => $entretien,
-
-            // Prix
-            'prix'              => $prix,
-            'negociable'        => $request->negociable ?? 'Non',
-            'caution'           => $request->caution    ?? '0',
-
-            // Contenu
-            'description'       => $request->description,
-            'images'            => $imagesStr,
-            'video'             => $videoPath,
-        ]);
-
-        return response()->json(['status' => 200]);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json([
-            'status'  => 422,
-            'message' => 'Données invalides',
-            'errors'  => $e->errors(),
-        ], 422);
-
-    } catch (\Exception $e) {
-        Log::error('[AppartementUpdate] Exception', [
-            'appartement_id' => $id,
-            'message' => $e->getMessage(),
-        ]);
-        return response()->json([
-            'status'  => 500,
-            'message' => $e->getMessage(),
-        ]);
     }
-}
 
     /**
      * Supprimer une annonce
@@ -672,7 +679,6 @@ public function appartementUpdate(Request $request, $id)
     public function destroy($id)
     {
         $appartement = Appartement::findOrFail($id);
-       
 
         // 👉 Suppression des images si nécessaire
         if ($appartement->image && file_exists(public_path('images/appartements/'.$appartement->image))) {
@@ -684,30 +690,7 @@ public function appartementUpdate(Request $request, $id)
         return redirect()->back()->with('success', 'Appartement supprimé avec succès.');
     }
 
-    /**
-     * Activer/Desactiver une annonce
-     */
-    // public function toggleStatut($id)
-    // {
-    //     $appartement = Appartement::findOrFail($id);
-
-    //     // Inverser le statut
-    //     $appartement->statut = !$appartement->statut;
-    //     $appartement->save();
-
-    //     return back()->with(
-    //         'success',
-    //         $appartement->statut 
-    //             ? 'Annonce réactivée avec succès.'
-    //             : 'Annonce désactivée avec succès.'
-    //     );
-    // }
-
- 
-    /**
-     * Activer ou désactiver l'annonce
-     */
- 
+    
     /**
      * Activer ou désactiver l'annonce
      */
@@ -799,70 +782,5 @@ public function appartementUpdate(Request $request, $id)
         // Fallback : redirection
         return redirect()->back()->with('success', 'Paiement traité.');
     }
-
-    /**
- * Gère le like / dislike d'une annonce.
- * Stocke l'état en session pour éviter les doublons par visiteur.
- * Enregistre les compteurs en base dans la table appartements.
- *
- * POST /appartement/reaction
- * Body JSON : { id: int, type: "like"|"dislike" }
- * Retourne  : { likes: int, dislikes: int, reaction: "like"|"dislike"|null }
- */
-public function reaction(Request $request)
-{
-    $request->validate([
-        'id'   => 'required|integer|exists:appartements,id',
-        'type' => 'required|in:like,dislike',
-    ]);
- 
-    $id   = (int) $request->id;
-    $type = $request->type;          // 'like' ou 'dislike'
- 
-    // Clé de session unique : "reaction_{id_annonce}"
-    $sessionKey = 'reaction_' . $id;
- 
-    // ── Ce visiteur a-t-il déjà voté ? ──────────────────────────
-    if (session()->has($sessionKey)) {
-        /*
-         * Déjà voté : on renvoie les compteurs actuels sans rien modifier.
-         * Le front-end désactivera les boutons à la réception de success:false.
-         */
-        $appt = \App\Models\Appartement::findOrFail($id);
- 
-        return response()->json([
-            'success'  => false,
-            'likes'    => $appt->likes,
-            'dislikes' => $appt->dislikes,
-            'message'  => 'Vous avez déjà voté pour cette annonce.',
-        ]);
-    }
- 
-    // ── Premier vote : on incrémente ─────────────────────────────
-    $appt = \App\Models\Appartement::findOrFail($id);
- 
-    if ($type === 'like') {
-        $appt->increment('likes');
-    } else {
-        $appt->increment('dislikes');
-    }
- 
-    // Mémoriser le vote en session (toute la durée de la session navigateur)
-    session([$sessionKey => $type]);
- 
-    // Retourner les nouvelles valeurs fraîches
-    $appt->refresh();
- 
-    return response()->json([
-        'success'  => true,
-        'likes'    => $appt->likes,
-        'dislikes' => $appt->dislikes,
-    ]);
-}
- 
-
-
-
-
 
 }
