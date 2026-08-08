@@ -19,6 +19,67 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::prefix('test-errors')->group(function () {
+    
+    // Page 404 - Not Found
+    Route::get('/401', function() {
+        abort(401);
+    })->name('test.401');
+    
+    // Page 403 - Forbidden
+    Route::get('/403', function() {
+        abort(403, 'Vous n\'avez pas les droits nécessaires.');
+    })->name('test.403');
+    
+    // Page 500 - Server Error
+    Route::get('/500', function() {
+        abort(500);
+    })->name('test.500');
+    
+    // Page 419 - Session Expired
+    Route::get('/419', function() {
+        abort(419);
+    })->name('test.419');
+    
+    // Page 429 - Too Many Requests
+    Route::get('/429', function() {
+        abort(429);
+    })->name('test.429');
+    
+    // Page 503 - Maintenance
+    Route::get('/503', function() {
+        abort(503);
+    })->name('test.503');
+    
+    // Page 401 - Unauthorized
+    Route::get('/401', function() {
+        abort(401);
+    })->name('test.401');
+    
+    // Test avec message personnalisé 403
+    Route::get('/403-custom', function() {
+        abort(403, 'Accès réservé aux administrateurs.');
+    })->name('test.403.custom');
+    
+    // Test avec exception personnalisée
+    Route::get('/exception', function() {
+        throw new \Exception('Une erreur personnalisée est survenue !');
+    })->name('test.exception');
+    
+    // Test 404 avec une URL inexistante
+    Route::get('/page-inexistante', function() {
+        // Cette route n'existe pas, Laravel renverra automatiquement une 404
+        // Mais on peut aussi le faire manuellement
+        abort(404);
+    })->name('test.404.custom');
+});
+
+// Route qui existe pour tester la 404
+Route::get('/test-existe', function() {
+    return 'Cette page existe !';
+})->name('test.existe');
+
+
 
 Route::get('/', [UserAuthController::class, 'index'])->name('home');
 Route::get('/validate-account/{email}', [UserAuthController::class, 'defineAccess']);
