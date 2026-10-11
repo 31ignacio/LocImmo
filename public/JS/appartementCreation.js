@@ -1207,7 +1207,7 @@
                         }
                         currentAppartementId = appId;
                         var duree=document.getElementById('duree').value;
-                        var frais=duree==='90 Jours'?5000:2000;
+                        var frais=duree==='7 Jours'?2000:2000;
                         var ctnr=document.getElementById('payerContainer'); ctnr.innerHTML='';
                         var kk=document.createElement('kkiapay-widget');
                         kk.setAttribute('amount',String(frais));

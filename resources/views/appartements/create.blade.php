@@ -1436,7 +1436,7 @@ document.querySelectorAll('.eq').forEach(function(item){
         }
 
         /* ══════════════════════════════════════
-        SOUMISSION — PAIEMENT 5000 FCFA
+        SOUMISSION — PAIEMENT 2000 FCFA
         ══════════════════════════════════════ */
         function submitAnnonce(transactionId){
             syncSurfaceTotale();
@@ -1540,7 +1540,7 @@ document.querySelectorAll('.eq').forEach(function(item){
 
                         // Sauvegarde OK, on lance le widget Kkiapay pour paiement
                         currentAppartementId = appId;
-                        var frais = 5000; // ou calculer selon la durée
+                        var frais = 2000; // ou calculer selon la durée
                         var ctnr = document.getElementById('payerContainer'); ctnr.innerHTML = '';
                         var kk = document.createElement('kkiapay-widget');
                         kk.setAttribute('amount', String(frais));

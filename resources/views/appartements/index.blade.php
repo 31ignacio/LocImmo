@@ -580,14 +580,7 @@ body {
                 <strong>{{ $appartements->total() }}</strong>
                 bien{{ $appartements->total() > 1 ? 's' : '' }} trouvé{{ $appartements->total() > 1 ? 's' : '' }}
             </div>
-            <div class="sort-row">
-                <span class="sort-label">Trier :</span>
-                <select class="sort-sel" onchange="window.location=this.value">
-                    <option value="{{ request()->fullUrlWithQuery(['sort'=>'recent']) }}"    {{ request('sort','recent')=='recent'   ?'selected':'' }}>Plus récents</option>
-                    <option value="{{ request()->fullUrlWithQuery(['sort'=>'prix_asc']) }}"  {{ request('sort')=='prix_asc'          ?'selected':'' }}>Prix croissant</option>
-                    <option value="{{ request()->fullUrlWithQuery(['sort'=>'prix_desc']) }}" {{ request('sort')=='prix_desc'         ?'selected':'' }}>Prix décroissant</option>
-                </select>
-            </div>
+           
         </div>
 
         <div class="prop-grid" id="propGrid">

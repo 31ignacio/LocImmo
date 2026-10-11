@@ -305,7 +305,7 @@
                         <div class="contact-info-ico"><i class="fa fa-phone"></i></div>
                         <div class="contact-info-txt">
                             <strong>Téléphone</strong>
-                            <span>+229 00 00 00 00</span>
+                            <span>+229 01 62 31 00 00</span>
                         </div>
                     </div>
 

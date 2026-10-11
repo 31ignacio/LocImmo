@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,6 +17,8 @@ use App\Http\Controllers\Api\AuthController;
 
 Route::middleware('auth:sanctum')->group(function () {
     //Recuperer les info du user connecté
-    Route::get('/user', [AuthController::class, 'user']);
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
     
 });
